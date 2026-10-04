@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 
@@ -15,16 +16,41 @@ export type Quota = {
   usage: { commerciaux: number; clotures_mois: number; equipe: number };
 };
 
+// Copie locale du profil : permet d'ouvrir l'application sans réseau (effacée à la déconnexion)
+const CLE_LOCALE = 'commpro:profil';
+type Local = { userId: string; profil: Profil; quota: Quota | null };
+const lireLocal = (): Local | null => {
+  try { return JSON.parse(localStorage.getItem(CLE_LOCALE) ?? 'null'); } catch { return null; }
+};
+const ecrireLocal = (l: Local) => {
+  try { localStorage.setItem(CLE_LOCALE, JSON.stringify(l)); } catch { /* stockage plein ou indisponible */ }
+};
+
 export const load: LayoutLoad = async ({ parent, url }) => {
   const { supabase, session } = await parent();
-  if (!session) redirect(303, '/login');
+
+  // Hors ligne avec une session expirée (impossible à renouveler sans réseau) : on reste dans l'application
+  if (!session) {
+    const local = browser && !navigator.onLine ? lireLocal() : null;
+    if (local) return { profil: local.profil, quota: local.quota, userId: local.userId, horsLigneAuDemarrage: true };
+    redirect(303, '/login');
+  }
 
   const requete = () =>
     supabase.from('users')
       .select('role, nom, tenant_id, commercial_id, tenants(name, devise)')
       .eq('id', session.user.id).maybeSingle();
 
-  let { data: profil } = await requete();
+  let { data: profil, error: erreurProfil } = await requete();
+
+  if (erreurProfil) {
+    // Réseau coupé : on n'essaie surtout pas de créer une entreprise, on utilise la copie locale
+    const local = browser ? lireLocal() : null;
+    if (local && erreurProfil.code === 'HORS_LIGNE') {
+      return { profil: local.profil, quota: local.quota, userId: local.userId, horsLigneAuDemarrage: true };
+    }
+    throw erreurProfil;
+  }
 
   // Premier passage : on crée l'entreprise à partir des infos saisies à l'inscription
   if (!profil) {
@@ -41,10 +67,14 @@ export const load: LayoutLoad = async ({ parent, url }) => {
     ({ data: profil } = await requete());
   }
   const p = profil as unknown as Profil;
+
   // Le commercial n'accède qu'à son portail, à ses reçus et à son relevé
   if (p.role === 'commercial' && !['/portail', '/recu/', '/credit/'].some((x) => url.pathname.startsWith(x))) {
     redirect(303, '/portail');
   }
+
   const { data: quota } = await supabase.rpc('usage_plan');
-  return { profil: p, quota: quota as Quota | null };
+  const q = quota as Quota | null;
+  if (browser) ecrireLocal({ userId: session.user.id, profil: p, quota: q });
+  return { profil: p, quota: q, userId: session.user.id, horsLigneAuDemarrage: false };
 };

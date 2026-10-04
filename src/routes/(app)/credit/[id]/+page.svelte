@@ -1,13 +1,26 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { fmt, dateCourte } from '$lib/format';
-  import { LIBELLES, effet, mouvements, statutSolde, type Sens, type TypeReglement } from '$lib/credit';
+  import { LIBELLES, effet, impactReglements, mouvements, statutSolde, type Sens, type TypeReglement } from '$lib/credit';
+  import { etat, rafraichir } from '$lib/etat.svelte';
+  import { ajouterAction, listerActions, type Action } from '$lib/file-attente';
   let { data } = $props();
 
   const devise = $derived(data.profil.tenants.devise);
   const canEdit = $derived(['admin', 'manager'].includes(data.profil.role));
   const s = $derived(data.solde);
-  const solde = $derived(Number(s?.solde ?? 0));
+  // Règlements saisis hors ligne et pas encore envoyés : ils comptent déjà dans le solde affiché
+  let enAttente = $state<Action[]>([]);
+  async function chargerAttente() {
+    try {
+      enAttente = (await listerActions()).filter(
+        (a) => a.payload.commercial_id === data.c.id && a.user_id === data.userId && !a.erreur);
+    } catch { enAttente = []; }
+  }
+  $effect(() => { etat.enAttente; etat.refuses; chargerAttente(); });
+  const impactAttente = $derived(impactReglements(enAttente.map((a) => a.payload as any)));
+  const solde = $derived(Number(s?.solde ?? 0) + impactAttente);
+  let infoHors = $state('');
   const liste = $derived(mouvements(data.clotures, data.reglements).reverse());
 
   const aujourdhui = () => new Date().toISOString().slice(0, 10);
@@ -32,16 +45,27 @@
     e.preventDefault();
     if (!f || m <= 0) { err = 'Montant invalide.'; return; }
     busy = true; err = '';
-    const { error } = await data.supabase.from('reglements').insert({
+    const ligne = {
+      id: crypto.randomUUID(), // identifiant fixé ici : un renvoi ne peut jamais créer de doublon
       tenant_id: data.profil.tenant_id, commercial_id: data.c.id,
       cloture_id: f.cloture_id || null, type: f.type,
       sens: f.type === 'ajustement' ? f.sens : null,
       montant: m, mode: f.type === 'autre' ? null : f.mode,
       reference: f.reference.trim() || null, note: f.note.trim() || null,
-      date_reglement: f.date, devise, created_by: data.session?.user.id
-    });
+      date_reglement: f.date, devise, created_by: data.userId
+    };
+    let horsLigne = !navigator.onLine;
+    if (!horsLigne) {
+      const { error } = await data.supabase.from('reglements').upsert(ligne, { onConflict: 'id', ignoreDuplicates: true });
+      if (error?.code === 'HORS_LIGNE') horsLigne = true;
+      else if (error) { busy = false; err = error.message; return; }
+    }
+    if (horsLigne) {
+      await ajouterAction({ id: ligne.id, user_id: data.userId, table: 'reglements', payload: ligne, created_at: new Date().toISOString() });
+      await rafraichir();
+      infoHors = 'Règlement enregistré sur ce téléphone. Il sera envoyé automatiquement au retour du réseau.';
+    }
     busy = false;
-    if (error) { err = error.message; return; }
     f = null;
     await invalidateAll();
   }
@@ -52,7 +76,7 @@
     const { error } = await data.supabase.from('reglements').insert({
       tenant_id: data.profil.tenant_id, commercial_id: data.c.id, type: 'ajustement',
       sens: solde > 0 ? 'credit' : 'debit', montant: Math.abs(solde),
-      note: 'Solde clôturé', date_reglement: aujourdhui(), devise, created_by: data.session?.user.id
+      note: 'Solde clôturé', date_reglement: aujourdhui(), devise, created_by: data.userId
     });
     if (error) err = error.message;
     await invalidateAll();
@@ -123,6 +147,7 @@
         <strong>{solde + impact === 0 ? 'Soldé' : fmt(Math.abs(solde + impact), devise) + (solde + impact > 0 ? ' dû' : ' à payer')}</strong></div>
       {#if f.type === 'autre'}<div class="mut">Ce type n'a pas d'effet sur le solde.</div>{/if}
     </div>
+    {#if !etat.enLigne}<p class="mut">Hors ligne : le règlement sera gardé sur ce téléphone puis envoyé automatiquement.</p>{/if}
     {#if err}<p class="err">{err}</p>{/if}
     <button class="btn primary" disabled={busy}>Enregistrer</button>
     <button type="button" class="btn" style="margin-top:.5rem" onclick={() => (f = null)}>Annuler</button>
@@ -131,14 +156,24 @@
   {#if canEdit}
     <div class="grid2" style="margin-bottom:.6rem">
       <button class="btn primary" onclick={nouveau}>+ Règlement</button>
-      <button class="btn" disabled={solde === 0} onclick={marquerSolde}>✓ Marquer soldé</button>
+      <button class="btn" disabled={solde === 0 || !etat.enLigne} onclick={marquerSolde}>✓ Marquer soldé</button>
     </div>
   {/if}
   <a class="btn" style="display:block;text-align:center;line-height:1.9" href={`/credit/${data.c.id}/releve`}>⎙ Relevé de compte</a>
   {#if err}<p class="err">{err}</p>{/if}
+  {#if infoHors}<p class="ok">{infoHors}</p>{/if}
 {/if}
 
 <h2>Mouvements</h2>
+{#each enAttente as a (a.id)}
+  <div class="card row" style="border-style:dashed">
+    <div>
+      <strong>{LIBELLES[a.payload.type as TypeReglement]?.replace(/^\S+\s/, '') ?? 'Règlement'}</strong>
+      <div class="mut">⟳ en attente d'envoi</div>
+    </div>
+    <strong>{fmt(Number(a.payload.montant), devise)}</strong>
+  </div>
+{/each}
 {#each liste as x (x.kind + x.id)}
   <div class="card row">
     <div>

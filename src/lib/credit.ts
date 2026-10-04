@@ -17,6 +17,10 @@ export function effet(type: TypeReglement, sens: Sens | null | undefined, montan
   }
 }
 
+// Variation du solde (débit - crédit) produite par une liste de règlements, ex. ceux en attente d'envoi
+export const impactReglements = (rows: { type: TypeReglement; sens?: Sens | null; montant: number | string }[]) =>
+  rows.reduce((t, r) => { const e = effet(r.type, r.sens, Number(r.montant)); return t + e.debit - e.credit; }, 0);
+
 export interface Mouvement {
   id: string; kind: 'cloture' | 'reglement'; date: string; tri: string;
   libelle: string; debit: number; credit: number; solde?: number;

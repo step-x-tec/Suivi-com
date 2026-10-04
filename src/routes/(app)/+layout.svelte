@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
+  import { goto, preloadData } from '$app/navigation';
+  import { etat, demarrer, rafraichir, synchroniser } from '$lib/etat.svelte';
+  import { viderActions } from '$lib/file-attente';
   let { data, children } = $props();
 
   const commercial = $derived(data.profil.role === 'commercial');
@@ -21,7 +24,28 @@
   const actif = (href: string) =>
     href === '/' ? page.url.pathname === '/' : page.url.pathname.startsWith(href);
 
+  onMount(() => {
+    const arreter = demarrer(data.supabase, data.userId);
+    const minuteur = setTimeout(prechauffer, 4000);
+    return () => { arreter(); clearTimeout(minuteur); };
+  });
+
+  // Charge en arrière-plan les écrans principaux pour qu'ils restent consultables sans réseau
+  async function prechauffer() {
+    if (!navigator.onLine) return;
+    const ecrans = commercial ? ['/portail'] : ['/', '/cloture', '/credit', '/commerciaux', '/attributions', '/articles'];
+    for (const h of ecrans) { try { await preloadData(h); } catch { /* écran indisponible */ } }
+  }
+
   async function deconnexion() {
+    if (!navigator.onLine) { alert('Connectez-vous à internet pour vous déconnecter.'); return; }
+    await synchroniser(data.supabase, data.userId);
+    await rafraichir();
+    const restantes = etat.enAttente + etat.refuses;
+    if (restantes > 0 && !confirm(`${restantes} action(s) enregistrée(s) hors ligne ne sont pas envoyées et seront supprimées. Se déconnecter quand même ?`)) return;
+    await viderActions();
+    navigator.serviceWorker?.controller?.postMessage('vider'); // efface pages et données en cache
+    try { localStorage.removeItem('commpro:profil'); } catch { /* ignoré */ }
     await data.supabase.auth.signOut({ scope: 'global' });
     await goto('/login', { invalidateAll: true });
   }
@@ -38,6 +62,17 @@
     <span class="mut">{data.profil.tenants.name}</span>
     <button class="btn small" onclick={deconnexion}>Déconnexion</button>
   </div>
+  {#if !etat.enLigne}
+    <div class="card no-print">📡 Hors ligne : vous voyez les données de votre dernière connexion.{etat.enAttente ? ` ${etat.enAttente} action(s) seront envoyées au retour du réseau.` : ''}</div>
+  {:else if etat.enAttente > 0}
+    <div class="card row no-print">
+      <span>⟳ {etat.enAttente} action(s) en cours d'envoi…</span>
+      <button class="btn small" disabled={etat.synchro} onclick={() => synchroniser(data.supabase, data.userId)}>Réessayer</button>
+    </div>
+  {/if}
+  {#if etat.refuses > 0}
+    <a class="card err no-print" href="/synchronisation">{etat.refuses} action(s) refusée(s) par le serveur : voir le détail →</a>
+  {/if}
   {#if !commercial && data.quota?.expire}
     <a class="card err no-print" href="/parametres">Abonnement expiré : les limites du plan Gratuit s'appliquent. Renouveler →</a>
   {:else if !commercial && data.quota && data.quota.plan !== 'free' && data.quota.jours_restants !== null && data.quota.jours_restants <= 7}

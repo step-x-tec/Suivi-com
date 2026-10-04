@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { calcCloture, type Method } from '$lib/calc';
   import { fmt } from '$lib/format';
+  import { etat } from '$lib/etat.svelte';
   let { data } = $props();
 
   const devise = $derived(data.profil.tenants.devise);
@@ -111,6 +112,9 @@
     <div class="row"><span>Net à payer</span><span class="net">{fmt(calc.net, devise)}</span></div>
     {#if calc.defauts > 0}<div class="mut">Défauts (valeur, déjà exclus des ventes) : {fmt(calc.defauts, devise)}</div>{/if}
   </div>
-  <button class="btn primary" disabled={busy} onclick={valider}>{busy ? 'Validation…' : 'Confirmer la clôture'}</button>
+  {#if !etat.enLigne}
+    <p class="err">Hors ligne : la clôture nécessite une connexion (stock et numéro de reçu vérifiés par le serveur). Vos saisies sont conservées sur cet écran.</p>
+  {/if}
+  <button class="btn primary" disabled={busy || !etat.enLigne} onclick={valider}>{busy ? 'Validation…' : 'Confirmer la clôture'}</button>
   <button class="btn" style="margin-top:.5rem" disabled={busy} onclick={() => (etape = 'saisie')}>Modifier</button>
 {/if}

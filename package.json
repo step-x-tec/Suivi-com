@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@sveltejs/adapter-vercel": "^5.0.0",
+    "@sveltejs/adapter-netlify": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "svelte": "^5.0.0",
@@ -23,5 +23,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.6.0",
     "@supabase/supabase-js": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
