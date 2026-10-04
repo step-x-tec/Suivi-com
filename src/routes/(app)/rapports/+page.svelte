@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { fmt, dateCourte } from '$lib/format';
   import { toCsv, telecharger } from '$lib/csv';
+  import { telechargerXlsx } from '$lib/xlsx';
   import { inventaire, parCommercial, parGroupe, periode, tauxEcoulement, totauxClotures, type CodePeriode } from '$lib/rapports';
   let { data } = $props();
   const devise = $derived(data.profil.tenants.devise);
@@ -22,8 +23,8 @@
   const tot = $derived(totauxClotures(data.clotures));
   const comm = $derived(parCommercial(data.clotures, data.attributions));
 
-  const tableau = $derived.by((): { cols: Col[]; rows: (string | number)[][] } => {
-    switch (onglet) {
+  function construire(o: (typeof ONGLETS)[number][0]): { cols: Col[]; rows: (string | number)[][] } {
+    switch (o) {
       case 'resume':
         return { cols: [{ l: 'Groupe', t: 'txt' }, { l: 'Clôt.', t: 'int' }, { l: 'Ventes', t: 'money' }, { l: 'Comm.', t: 'money' }, { l: 'Net', t: 'money' }],
           rows: parGroupe(data.clotures, data.groupes).map((g) => [g.groupe, g.nb, g.ventes, g.commissions, g.net]) };
@@ -40,10 +41,19 @@
         return { cols: [{ l: 'Article', t: 'txt' }, { l: 'Stock', t: 'int' }, { l: 'Vendus', t: 'int' }, { l: 'Rest.', t: 'int' }, { l: 'Rotation', t: 'pct' }, { l: 'Valeur stock', t: 'money' }],
           rows: inventaire(data.attributions).map((r) => [r.nom, r.stock, r.vendus, r.restants, r.rotation, r.valeur]) };
     }
-  });
+  }
+  const tableau = $derived(construire(onglet));
 
   const cell = (v: string | number, t: Col['t']) =>
     t === 'money' ? fmt(Number(v), devise) : t === 'pct' ? `${Number(v).toFixed(1)} %` : String(v);
+
+  // Classeur complet : une feuille par onglet, pourcentages arrondis à 1 décimale comme dans le CSV
+  function exporterExcel() {
+    telechargerXlsx(`rapports-${data.du}_${data.au}.xlsx`, ONGLETS.map(([k, titre]) => {
+      const t = construire(k);
+      return { nom: titre, lignes: [t.cols.map((c) => c.l), ...t.rows.map((r) => r.map((v, i) => (t.cols[i].t === 'pct' ? Number(Number(v).toFixed(1)) : v)))] };
+    }));
+  }
 
   function exporter() {
     telecharger(`rapport-${onglet}-${data.du}_${data.au}.csv`,
@@ -99,9 +109,10 @@
 </div>
 
 <div class="grid2 no-print">
-  <button class="btn" onclick={exporter} disabled={tableau.rows.length === 0}>Export CSV</button>
-  <button class="btn" onclick={() => window.print()} disabled={!data.quota?.limites.export_pdf}>⎙ Imprimer / PDF</button>
+  <button class="btn" onclick={exporterExcel}>⬇ Excel (tous les onglets)</button>
+  <button class="btn" onclick={exporter} disabled={tableau.rows.length === 0}>CSV (onglet affiché)</button>
 </div>
+<button class="btn no-print" style="margin-top:.5rem" onclick={() => window.print()} disabled={!data.quota?.limites.export_pdf}>⎙ Imprimer / PDF</button>
 {#if data.quota && !data.quota.limites.export_pdf}
   <p class="mut no-print">L'export PDF est disponible à partir du plan Starter.</p>
 {/if}

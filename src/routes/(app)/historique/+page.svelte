@@ -2,6 +2,7 @@
   import { invalidateAll } from '$app/navigation';
   import { fmt, dateCourte } from '$lib/format';
   import { toCsv, telecharger } from '$lib/csv';
+  import { telechargerXlsx } from '$lib/xlsx';
   let { data } = $props();
   const devise = $derived(data.profil.tenants.devise);
   const isAdmin = $derived(data.profil.role === 'admin');
@@ -32,13 +33,13 @@
     await invalidateAll();
   }
 
-  function exporter() {
-    telecharger('historique-clotures.csv', toCsv([
-      ['Référence', 'Date', 'Commercial', 'Brut', 'Commissions', 'Divers', 'Net', 'Statut'],
-      ...liste.map((k) => [k.reference, k.created_at.slice(0, 10), k.commerciaux?.nom, Number(k.brut),
-        Number(k.commissions), Number(k.divers), Number(k.net_final), k.status])
-    ]));
-  }
+  const tableau = $derived([
+    ['Référence', 'Date', 'Commercial', 'Brut', 'Commissions', 'Défauts', 'Divers', 'Net', 'Statut'],
+    ...liste.map((k) => [k.reference, k.created_at.slice(0, 10), k.commerciaux?.nom ?? '', Number(k.brut),
+      Number(k.commissions), Number(k.defauts), Number(k.divers), Number(k.net_final), k.status])
+  ]);
+  const exporter = () => telecharger('historique-clotures.csv', toCsv(tableau));
+  const exporterExcel = () => telechargerXlsx('historique-clotures.xlsx', [{ nom: 'Clôtures', lignes: tableau }]);
 </script>
 
 <h1>Historique</h1>
@@ -61,7 +62,10 @@
 
 <div class="row" style="margin-bottom:.8rem">
   <span class="mut">{liste.length} clôture(s) · net {fmt(totalNet, devise)}</span>
-  <button class="btn small" onclick={exporter} disabled={liste.length === 0}>Export CSV</button>
+  <div style="display:flex;gap:.4rem">
+    <button class="btn small" onclick={exporterExcel} disabled={liste.length === 0}>Excel</button>
+    <button class="btn small" onclick={exporter} disabled={liste.length === 0}>CSV</button>
+  </div>
 </div>
 {#if err}<p class="err">{err}</p>{/if}
 

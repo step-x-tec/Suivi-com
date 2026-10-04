@@ -17,7 +17,7 @@ export function periode(code: CodePeriode, now = new Date()) {
 
 export interface ClotureR {
   id: string; commercial_id: string; created_at: string;
-  brut: number | string; commissions: number | string; divers: number | string; net_final: number | string;
+  brut: number | string; defauts?: number | string | null; commissions: number | string; divers: number | string; net_final: number | string;
   commerciaux?: { nom: string; groupe_id: string | null } | null;
 }
 export interface AttrR {
@@ -34,7 +34,7 @@ export const tauxEcoulement = (a: AttrR[]) => {
 export function totauxClotures(cl: ClotureR[]) {
   return {
     nb: cl.length,
-    brut: cl.reduce((s, c) => s + n(c.brut), 0),
+    brut: cl.reduce((s, c) => s + n(c.brut) - n(c.defauts), 0), // ventes valides (brut moins défauts)
     commissions: cl.reduce((s, c) => s + n(c.commissions), 0),
     divers: cl.reduce((s, c) => s + n(c.divers), 0),
     net: cl.reduce((s, c) => s + n(c.net_final), 0)
@@ -46,7 +46,7 @@ export function parCommercial(cl: ClotureR[], attrs: AttrR[]) {
   for (const c of cl) {
     const r = map.get(c.commercial_id) ??
       { id: c.commercial_id, nom: c.commerciaux?.nom ?? '—', nb: 0, ventes: 0, commissions: 0, net: 0, derniere: '' };
-    r.nb++; r.ventes += n(c.brut); r.commissions += n(c.commissions); r.net += n(c.net_final);
+    r.nb++; r.ventes += n(c.brut) - n(c.defauts); r.commissions += n(c.commissions); r.net += n(c.net_final);
     if (c.created_at > r.derniere) r.derniere = c.created_at;
     map.set(c.commercial_id, r);
   }
@@ -65,7 +65,7 @@ export function parGroupe(cl: ClotureR[], groupes: { id: string; nom: string }[]
   for (const c of cl) {
     const gid = c.commerciaux?.groupe_id ?? '';
     const r = map.get(gid) ?? { groupe: noms.get(gid) ?? 'Sans groupe', nb: 0, ventes: 0, commissions: 0, net: 0 };
-    r.nb++; r.ventes += n(c.brut); r.commissions += n(c.commissions); r.net += n(c.net_final);
+    r.nb++; r.ventes += n(c.brut) - n(c.defauts); r.commissions += n(c.commissions); r.net += n(c.net_final);
     map.set(gid, r);
   }
   return [...map.values()].sort((a, b) => b.ventes - a.ventes);

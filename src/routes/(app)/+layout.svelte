@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto, preloadData } from '$app/navigation';
-  import { etat, demarrer, rafraichir, synchroniser } from '$lib/etat.svelte';
+  import { etat, demarrer, ecouterNotifications, rafraichir, synchroniser } from '$lib/etat.svelte';
   import { viderActions } from '$lib/file-attente';
   let { data, children } = $props();
 
@@ -26,8 +26,9 @@
 
   onMount(() => {
     const arreter = demarrer(data.supabase, data.userId);
+    const arreterNotifs = ecouterNotifications(data.supabase, data.userId);
     const minuteur = setTimeout(prechauffer, 4000);
-    return () => { arreter(); clearTimeout(minuteur); };
+    return () => { arreter(); arreterNotifs(); clearTimeout(minuteur); };
   });
 
   // Charge en arrière-plan les écrans principaux pour qu'ils restent consultables sans réseau
@@ -60,8 +61,15 @@
 <main class="page">
   <div class="row no-print" style="margin-bottom:.5rem">
     <span class="mut">{data.profil.tenants.name}</span>
-    <button class="btn small" onclick={deconnexion}>Déconnexion</button>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <a class="btn small" href="/notifications" aria-label="Notifications">🔔{#if etat.nonLues > 0}<span class="badge" style="margin-left:.3rem;background:var(--acc);color:var(--acc-txt)">{etat.nonLues}</span>{/if}</a>
+      <button class="btn small" onclick={deconnexion}>Déconnexion</button>
+    </div>
   </div>
+  {#if etat.toast}
+    <a class="card no-print" href="/notifications"
+       style="position:fixed;left:1rem;right:1rem;top:calc(.6rem + env(safe-area-inset-top, 0px));z-index:30;max-width:520px;margin:0 auto;border-color:var(--acc)">🔔 {etat.toast}</a>
+  {/if}
   {#if !etat.enLigne}
     <div class="card no-print">📡 Hors ligne : vous voyez les données de votre dernière connexion.{etat.enAttente ? ` ${etat.enAttente} action(s) seront envoyées au retour du réseau.` : ''}</div>
   {:else if etat.enAttente > 0}

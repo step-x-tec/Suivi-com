@@ -7,7 +7,9 @@
   const texteWhatsApp = $derived(
     `Reçu ${c.reference}\n${data.profil.tenants.name}\nCommercial : ${c.commerciaux.nom}\n` +
     `Date : ${dateCourte(c.created_at)}\nBrut : ${fmt(Number(c.brut), devise)}\n` +
-    `Commissions : ${fmt(Number(c.commissions), devise)}\nDivers : ${fmt(Number(c.divers), devise)}\n` +
+    `Commissions : -${fmt(Number(c.commissions), devise)}\n` +
+    (Number(c.defauts) > 0 ? `Défauts : -${fmt(Number(c.defauts), devise)}\n` : '') +
+    (Number(c.divers) > 0 ? `Divers : -${fmt(Number(c.divers), devise)}\n` : '') +
     `NET À PAYER : ${fmt(Number(c.net_final), devise)}`
   );
 </script>
@@ -25,11 +27,11 @@
 
 <div class="card scroll-x">
   <table>
-    <thead><tr><th>Article</th><th>Vendus</th><th>Déf.</th><th>Rest.</th><th>Brut</th><th>Comm.</th><th>Dû</th></tr></thead>
+    <thead><tr><th>Article</th><th>Vendus</th><th>Déf.</th><th>Rest.</th><th>Montant</th><th>Comm.</th><th>Dû</th></tr></thead>
     <tbody>
       {#each c.cloture_lines as l (l.id)}
         <tr>
-          <td>{l.article_nom}</td><td>{l.vend_valides}</td><td>{l.defauts}</td><td>{l.rest_apres}</td>
+          <td>{l.article_nom}</td><td>{l.vend}</td><td>{l.defauts}</td><td>{l.qty_avant - l.vend}</td>
           <td>{fmt(Number(l.montant), devise)}</td><td>{fmt(Number(l.commission), devise)}</td>
           <td>{fmt(Number(l.du), devise)}</td>
         </tr>
@@ -48,6 +50,11 @@
 {/if}
 
 <div class="card">
+  <div class="row"><span>Brut total ventes</span><strong>{fmt(Number(c.brut), devise)}</strong></div>
+  <div class="row"><span>Commissions déduites</span><strong>− {fmt(Number(c.commissions), devise)}</strong></div>
+  {#if Number(c.defauts) > 0}<div class="row"><span>Articles défauts déduits</span><strong>− {fmt(Number(c.defauts), devise)}</strong></div>{/if}
+  {#if Number(c.divers) > 0}<div class="row"><span>Divers déduits</span><strong>− {fmt(Number(c.divers), devise)}</strong></div>{/if}
+  <hr style="border-color:var(--line)" />
   <div class="row"><span>Net à payer</span><span class="net">{fmt(Number(c.net_final), devise)}</span></div>
 </div>
 

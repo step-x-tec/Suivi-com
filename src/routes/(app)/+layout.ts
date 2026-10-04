@@ -69,7 +69,7 @@ export const load: LayoutLoad = async ({ parent, url }) => {
   const p = profil as unknown as Profil;
 
   // Le commercial n'accède qu'à son portail, à ses reçus et à son relevé
-  if (p.role === 'commercial' && !['/portail', '/recu/', '/credit/'].some((x) => url.pathname.startsWith(x))) {
+  if (p.role === 'commercial' && !['/portail', '/recu/', '/credit/', '/notifications'].some((x) => url.pathname.startsWith(x))) {
     redirect(303, '/portail');
   }
 

@@ -78,7 +78,7 @@
         </label>
       </div>
       {#if r?.ok}
-        <div class="mut">{r.vend} vendu(s) · reste {r.rest} · commission {fmt(r.commission, devise)}</div>
+        <div class="mut">{r.vendValides} vendu(s) valide(s){r.vend > r.vendValides ? ` + ${r.vend - r.vendValides} défaut(s)` : ''} · stock après : {r.rest} · commission {fmt(r.commission, devise)}</div>
         <strong>Dû : {fmt(r.du, devise)}</strong>
       {:else if r}
         <div class="err">{r.erreur}</div>
@@ -105,12 +105,13 @@
   <button class="btn primary" disabled={!calc.valid} onclick={() => (etape = 'resume')}>Voir le résumé</button>
 {:else}
   <div class="card">
-    <div class="row"><span>Brut ventes</span><strong>{fmt(calc.brut, devise)}</strong></div>
+    <div class="row"><span>Brut total ventes</span><strong>{fmt(calc.brut, devise)}</strong></div>
     <div class="row"><span>− Commissions</span><strong>{fmt(calc.commissions, devise)}</strong></div>
+    {#if calc.defauts > 0}<div class="row"><span>− Articles défauts</span><strong>{fmt(calc.defauts, devise)}</strong></div>{/if}
     <div class="row"><span>− Divers</span><strong>{fmt(calc.divers, devise)}</strong></div>
     <hr style="border-color:var(--line)" />
     <div class="row"><span>Net à payer</span><span class="net">{fmt(calc.net, devise)}</span></div>
-    {#if calc.defauts > 0}<div class="mut">Défauts (valeur, déjà exclus des ventes) : {fmt(calc.defauts, devise)}</div>{/if}
+    {#if calc.net < 0}<div class="mut">Net négatif : les déductions dépassent le montant dû, la différence est créditée au commercial.</div>{/if}
   </div>
   {#if !etat.enLigne}
     <p class="err">Hors ligne : la clôture nécessite une connexion (stock et numéro de reçu vérifiés par le serveur). Vos saisies sont conservées sur cet écran.</p>

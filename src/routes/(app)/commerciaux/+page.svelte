@@ -56,6 +56,7 @@
 </script>
 
 <h1>Commerciaux</h1>
+<p class="mut no-print"><a href="/import?type=commerciaux" style="text-decoration:underline">📥 Importer un fichier CSV</a></p>
 
 {#if f}
   <form class="card" onsubmit={enregistrer}>

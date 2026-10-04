@@ -5,7 +5,7 @@ SvelteKit 2 + Svelte 5 + Supabase. Mobile-first, PWA.
 ## Démarrage
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.
-3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql` (dossier `supabase/migrations`).
+3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql` (dossier `supabase/migrations`).
 4. Supabase > Authentication > Hooks : activer *Custom Access Token* → `public.custom_access_token_hook`.
 5. Invitations et portail commercial (voir section ci-dessous).
 6. `npm run dev` · `npm test` · `npm run build` (déploiement Netlify, voir ci-dessous).
@@ -20,7 +20,14 @@ SvelteKit 2 + Svelte 5 + Supabase. Mobile-first, PWA.
 - [x] Plans & quotas appliqués en base (commerciaux actifs, clôtures/mois, équipe) · export PDF réservé à Starter+
 - [x] Paiement des abonnements Mobile Money via FedaPay (sandbox à tester avant le live)
 - [x] Mode hors ligne (application installable, consultation, règlements en file d'attente)
-- [ ] Excel · Notifications · Tableau de bord complet (graphiques) · Import CSV · API publique ← prochain
+- [x] Tableau de bord complet (KPIs, jauge de recouvrement, ventes par commercial, ventes et commissions par groupe, anneau des articles, courbe 30 jours, carte de chaleur 12 semaines, débiteurs, alertes, filtres période / groupe / article)
+- [x] Chargement paginé (Supabase plafonne à 1000 lignes par réponse) sur le tableau de bord et les rapports
+- [x] Import CSV des commerciaux, articles et groupes (modèle téléchargeable, aperçu, contrôle des doublons et du quota du plan)
+- [x] Notifications dans l'application (cloche, messages en direct, alertes stock bas et retards)
+- [x] Calcul de clôture aligné sur le prototype v1 (défauts inclus dans les vendus, déduits du net, remis en stock) + test de fidélité
+- [x] Import des données du prototype v1 (JSON) : groupes, articles, commerciaux, attributions, clôtures, règlements
+- [x] Export Excel (.xlsx) sans dépendance : rapports (une feuille par onglet) et historique des clôtures
+- [ ] E-mail et push · API publique ← prochain
 
 ## Règle d'or
 Les montants sont calculés **côté serveur** (`creer_cloture`). `src/lib/calc.ts` n'est qu'un aperçu
@@ -96,3 +103,44 @@ principaux 4 secondes après l'ouverture) ; les données affichées sont celles 
 - Si Netlify répond « Unable to access repository » : Site configuration > Build & deploy > Continuous deployment >
   Link repository, et vérifier que l'application GitHub Netlify a accès au dépôt `step-x-tec/Suivi-com`
   (GitHub > Settings > Applications > Netlify > Repository access).
+
+## Import CSV
+Plus > Importer des données (ou le lien en haut des listes). Choisir le type, télécharger le modèle si besoin, charger le fichier.
+- Lecture : séparateur détecté (`;` `,` tabulation), UTF-8 ou Windows-1252 (CSV d'Excel français), nombres « 1 500 », « 10 % », « 500 FCFA ».
+- Colonnes reconnues automatiquement (accents et variantes : « Téléphone », « Tel », « Nom complet »…), modifiables avant l'import.
+- Les lignes en erreur sont listées avec leur numéro et **ne sont pas importées** ; les autres le sont.
+- Doublons : identifiés par le **code** (ou le nom pour les groupes). Au choix, ignorés ou mis à jour (une cellule vide ne modifie jamais une fiche existante).
+- Le quota du plan est vérifié avant d'écrire quoi que ce soit.
+- Import par lots de 200 : si une erreur survient en cours de route, relancer avec « ignorer les existants » termine sans rien dupliquer
+  (uniquement pour les lignes ayant un **code** : sans code, une relance recrée la ligne).
+- Chaque ligne créée apparaît dans le journal d'activité.
+
+## Notifications
+Cloche en haut de chaque écran (nombre de non lues) + message qui s'affiche en direct quand un événement arrive.
+- Nouvelle attribution / stock ajouté → le commercial (s'il a un accès au portail).
+- Clôture validée ou annulée, règlement enregistré → le commercial et les administrateurs (sauf celui qui a fait l'action).
+- Stock bas (il reste 10 % ou moins, lots d'au moins 10) → administrateurs, une seule fois au franchissement du seuil.
+- Débiteur sans règlement depuis plus de 30 jours → administrateurs, rappel quotidien (au plus un par semaine et par commercial).
+À faire une fois : Supabase > Database > Extensions > activer **pg_cron** AVANT d'exécuter `006_notifications.sql`
+(sinon le rappel quotidien n'est pas planifié ; on peut le planifier ensuite : `select cron.schedule('alertes-retard','0 7 * * *','select public.alertes_retard()');`).
+Le temps réel utilise Supabase Realtime (la migration ajoute la table à la publication). **Pas encore fait** : e-mail et notification push
+(il faut choisir un service d'envoi), et les préférences de fréquence.
+
+## Calcul de clôture (identique au prototype v1)
+Pour chaque article : **vendus** = restants avant − restants saisis (ou vendus saisis) ; **vendus valides** = vendus − défauts ;
+**brut** = vendus × prix ; commission et « dû » ne portent que sur les vendus valides ; les **défauts** (défauts × prix) sont déduits ;
+**net** = brut − commissions − défauts − divers ; après clôture, **stock = restants + défauts** (les articles défectueux reviennent au commercial).
+Un test compare ce calcul au code du prototype sur 500 cas aléatoires. Seule différence : le net n'est **pas plafonné à 0**
+(dans le v1, `Math.max(0, …)` faisait perdre l'excédent de déductions) ; un excédent est ici crédité au commercial dans son compte.
+Le solde du crédit suit exactement la formule du v1 : clôtures − remises/avances + frais − retours ± ajustements.
+
+## Import depuis le prototype v1
+Plus > Importer des données > « Vous venez du prototype CommPro v1 ? » (administrateur, **compte vide** uniquement).
+Dans le prototype : bouton « ↓ JSON ». L'import est tout ou rien (une seule transaction) : si une ligne pose problème, rien n'est écrit.
+Les clôtures gardent leurs montants et reçoivent de nouveaux numéros REC-AAAAMM-XXXX dans l'ordre chronologique ; l'historique est importé sans
+journal ni notification par ligne et sans limite mensuelle. Les quotas de commerciaux actifs du plan s'appliquent.
+
+## Export Excel
+Rapports > « Excel (tous les onglets) » : un classeur avec une feuille par onglet (Résumé, Ventes, Commissions, Attributions, Inventaire).
+Historique > « Excel » : la liste filtrée des clôtures. Le fichier est généré dans le navigateur, sans bibliothèque externe
+(archive ZIP + XML, en-têtes en gras, première ligne figée, nombres au format #,##0). Contrôlé en le relisant avec openpyxl et en l'ouvrant avec LibreOffice.

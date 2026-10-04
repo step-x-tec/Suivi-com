@@ -5,6 +5,7 @@
     { href: '/attributions', nom: 'Attributions', icone: '📦' },
     { href: '/articles', nom: 'Articles', icone: '🏷️' },
     { href: '/groupes', nom: 'Groupes', icone: '🗂️' },
+    { href: '/import', nom: 'Importer des données (CSV)', icone: '📥' },
     { href: '/historique', nom: 'Historique des clôtures', icone: '📜' },
     { href: '/journal', nom: "Journal d'activité", icone: '🕑' },
     { href: '/parametres', nom: 'Paramètres', icone: '⚙️' }

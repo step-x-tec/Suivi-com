@@ -50,6 +50,7 @@
 </script>
 
 <h1>Articles</h1>
+<p class="mut no-print"><a href="/import?type=articles" style="text-decoration:underline">📥 Importer un fichier CSV</a></p>
 
 {#if f}
   <form class="card" onsubmit={enregistrer}>

@@ -4,7 +4,7 @@ export const load: PageLoad = async ({ parent }) => {
   const { supabase } = await parent();
   const [k, c] = await Promise.all([
     supabase.from('clotures')
-      .select('id, reference, commercial_id, brut, commissions, divers, net_final, status, annulee_motif, created_at, commerciaux(nom)')
+      .select('id, reference, commercial_id, brut, defauts, commissions, divers, net_final, status, annulee_motif, created_at, commerciaux(nom)')
       .order('created_at', { ascending: false }).limit(500),
     supabase.from('commerciaux').select('id, nom').order('nom')
   ]);

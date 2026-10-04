@@ -2,7 +2,9 @@
 -- CommPro v2 — Migration 001 : socle (schéma + RLS + cœur métier)
 -- STEP-X Technologies
 --
--- Hypothèses à valider (voir README) :
+-- NOTE : la règle des défauts (H2) ci-dessous est REMPLACÉE par la migration 007, alignée sur le prototype v1
+--        (les défauts sont inclus dans les vendus, déduits du net, et remis en stock).
+-- Hypothèses d'origine :
 --  H1. Solde > 0 = commercial débiteur (il doit au patron).
 --  H2. "Défauts" : déjà exclus des vendus valides (restants - saisis - défauts).
 --      Leur valeur est stockée à titre informatif et N'EST PAS soustraite
