@@ -4,6 +4,16 @@
   import { ICONES, tempsRelatif } from '$lib/notifications';
   let { data } = $props();
   let err = $state('');
+  let pref = $state(data.prefEmail ?? 'immediat');
+  let prefMsg = $state('');
+  const CHOIX: [string, string][] = [['immediat', 'Immédiatement'], ['quotidien', 'Un résumé par jour'], ['jamais', 'Jamais']];
+
+  async function changerPref(valeur: string) {
+    prefMsg = ''; err = '';
+    const { error } = await data.supabase.rpc('definir_preference_email', { p_freq: valeur });
+    if (error) { err = error.message; return; }
+    pref = valeur; prefMsg = 'Réglage enregistré.';
+  }
 
   const nonLues = $derived(data.notifications.filter((n) => !n.read).length);
 
@@ -31,6 +41,18 @@
   <button class="btn small" disabled={nonLues === 0 || !etat.enLigne} onclick={toutLu}>Tout marquer comme lu</button>
 </div>
 {#if err}<p class="err">{err}</p>{/if}
+
+{#if data.prefEmail !== null}
+  <div class="card">
+    <div class="mut" style="margin-bottom:.4rem">Recevoir aussi mes notifications par e-mail</div>
+    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin:0">
+      {#each CHOIX as [k, l]}
+        <button class:on={pref === k} style="font-size:.78rem;padding:.5rem .2rem" disabled={!etat.enLigne} onclick={() => changerPref(k)}>{l}</button>
+      {/each}
+    </div>
+    {#if prefMsg}<p class="ok" style="margin:.5rem 0 0">{prefMsg}</p>{/if}
+  </div>
+{/if}
 
 {#each data.notifications as n (n.id)}
   <button class="card" style={`width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;${n.read ? 'opacity:.65' : 'border-color:var(--acc)'}`}

@@ -62,6 +62,31 @@
     await invalidateAll();
   }
 
+  // ---- Accès API (plans Pro et Business) ----
+  let nomCle = $state(''), cleBusy = $state(false), cleErr = $state(''), nouvelleCle = $state(''), copie = $state(false);
+  const apiDispo = $derived(!!data.quota?.limites.api);
+  const clesActives = $derived(data.cles.filter((k) => !k.revoquee_at));
+
+  async function creerCle(e: SubmitEvent) {
+    e.preventDefault();
+    cleBusy = true; cleErr = ''; nouvelleCle = ''; copie = false;
+    const { data: jeton, error } = await data.supabase.rpc('creer_cle_api', { p_nom: nomCle });
+    cleBusy = false;
+    if (error) { cleErr = error.message; return; }
+    nouvelleCle = jeton as string; nomCle = '';
+    await invalidateAll();
+  }
+  async function copier() {
+    try { await navigator.clipboard.writeText(nouvelleCle); copie = true; } catch { cleErr = 'Copie impossible : sélectionnez la clé et copiez-la à la main.'; }
+  }
+  async function revoquer(k: { id: string; nom: string }) {
+    if (!confirm(`Révoquer la clé « ${k.nom} » ? Les applications qui l'utilisent cesseront immédiatement de fonctionner.`)) return;
+    cleErr = '';
+    const { error } = await data.supabase.rpc('revoquer_cle_api', { p_id: k.id });
+    if (error) cleErr = error.message;
+    await invalidateAll();
+  }
+
   async function exportJson() {
     err = '';
     const s = data.supabase, id = data.profil.tenant_id;
@@ -198,6 +223,36 @@
 {/if}
 
 {#if isAdmin}
+  <h2>Accès API</h2>
+  {#if !apiDispo}
+    <div class="card"><p class="mut" style="margin:0">L'API permet de relier CommPro à vos autres outils. Elle est disponible à partir du plan <strong>Pro</strong>.</p></div>
+  {:else}
+    {#if nouvelleCle}
+      <div class="card" style="border-color:var(--acc)">
+        <strong>Votre nouvelle clé</strong>
+        <p class="mut">Copiez-la maintenant : <strong>elle ne sera plus jamais affichée</strong>.</p>
+        <code style="display:block;word-break:break-all;padding:.6rem;background:var(--bg);border-radius:10px;user-select:all">{nouvelleCle}</code>
+        <button class="btn small" style="margin-top:.6rem" onclick={copier}>{copie ? '✓ Copiée' : 'Copier'}</button>
+      </div>
+    {/if}
+    {#each data.cles as k (k.id)}
+      <div class="card row" style={k.revoquee_at ? 'opacity:.55' : ''}>
+        <div>
+          <strong>{k.nom}</strong>
+          <div class="mut">{k.prefixe}… · {k.revoquee_at ? 'révoquée' : k.derniere_utilisation ? `utilisée le ${new Date(k.derniere_utilisation).toLocaleDateString('fr-FR')}` : 'jamais utilisée'}</div>
+        </div>
+        {#if !k.revoquee_at}<button class="btn small" onclick={() => revoquer(k)}>Révoquer</button>{/if}
+      </div>
+    {/each}
+    <form class="card" onsubmit={creerCle}>
+      <label>Nom de la nouvelle clé (ex. « Comptabilité »)<input bind:value={nomCle} required maxlength="60" /></label>
+      {#if cleErr}<p class="err">{cleErr}</p>{/if}
+      <button class="btn primary" disabled={cleBusy || clesActives.length >= 5}>Créer une clé</button>
+      {#if clesActives.length >= 5}<p class="mut">5 clés actives au maximum : révoquez-en une.</p>{/if}
+    </form>
+    <p class="mut">Documentation : fichier <strong>API.md</strong> livré avec l'application.</p>
+  {/if}
+
   <h2>Données</h2>
   <button class="btn" onclick={exportJson}>Exporter une sauvegarde complète (JSON)</button>
 {/if}

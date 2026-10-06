@@ -5,7 +5,7 @@ SvelteKit 2 + Svelte 5 + Supabase. Mobile-first, PWA.
 ## Démarrage
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.
-3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql` (dossier `supabase/migrations`).
+3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql` (dossier `supabase/migrations`).
 4. Supabase > Authentication > Hooks : activer *Custom Access Token* → `public.custom_access_token_hook`.
 5. Invitations et portail commercial (voir section ci-dessous).
 6. `npm run dev` · `npm test` · `npm run build` (déploiement Netlify, voir ci-dessous).
@@ -27,7 +27,9 @@ SvelteKit 2 + Svelte 5 + Supabase. Mobile-first, PWA.
 - [x] Calcul de clôture aligné sur le prototype v1 (défauts inclus dans les vendus, déduits du net, remis en stock) + test de fidélité
 - [x] Import des données du prototype v1 (JSON) : groupes, articles, commerciaux, attributions, clôtures, règlements
 - [x] Export Excel (.xlsx) sans dépendance : rapports (une feuille par onglet) et historique des clôtures
-- [ ] E-mail et push · API publique ← prochain
+- [x] API publique (plans Pro+) : clés dans Paramètres, 5 routes, limite 60 requêtes/minute, documentation `API.md`
+- [x] Notifications par e-mail (immédiat / résumé quotidien / jamais, au choix de chacun) via Resend
+- [ ] Notifications push · clôtures hors ligne (brouillons) ← prochain
 
 ## Règle d'or
 Les montants sont calculés **côté serveur** (`creer_cloture`). `src/lib/calc.ts` n'est qu'un aperçu
@@ -144,3 +146,49 @@ journal ni notification par ligne et sans limite mensuelle. Les quotas de commer
 Rapports > « Excel (tous les onglets) » : un classeur avec une feuille par onglet (Résumé, Ventes, Commissions, Attributions, Inventaire).
 Historique > « Excel » : la liste filtrée des clôtures. Le fichier est généré dans le navigateur, sans bibliothèque externe
 (archive ZIP + XML, en-têtes en gras, première ligne figée, nombres au format #,##0). Contrôlé en le relisant avec openpyxl et en l'ouvrant avec LibreOffice.
+
+## API publique
+Voir `API.md` (routes, exemples, erreurs). Mise en route une fois : `supabase functions deploy api-v1 --no-verify-jwt`
+(les clés CommPro ne sont pas des jetons Supabase) puis exécuter `008_api_publique.sql`.
+Sécurité : seule l'empreinte SHA-256 de chaque clé est stockée ; limite de 5 clés actives ; le plan est revérifié à chaque appel ;
+toutes les requêtes sont filtrées par entreprise. Pour exposer l'adresse `/api/v1/...` sur votre propre domaine, ajouter dans
+`netlify.toml` une redirection de type proxy vers la fonction (non activée par défaut).
+
+## ⚠️ E-mails : à régler AVANT d'inviter de vrais utilisateurs
+Les e-mails d'authentification de Supabase (invitation, mot de passe oublié, confirmation d'inscription) utilisent par défaut un service
+**réservé aux tests** : il n'envoie qu'aux membres de votre équipe Supabase et plafonne à quelques messages par heure. Sans réglage, vos
+clients ne recevront **aucune invitation**. Il faut brancher votre propre expéditeur (SMTP) :
+1. Créer un compte **Resend** (offre gratuite suffisante pour démarrer), ajouter et **vérifier votre domaine** (sinon l'envoi vers des tiers est refusé), créer une clé API.
+2. Supabase > Authentication > Emails > **SMTP Settings** : activer le SMTP personnalisé : hôte `smtp.resend.com`, port `465`, utilisateur `resend`, mot de passe = la clé API, adresse d'expédition sur votre domaine.
+3. Supabase > Authentication > **Rate Limits** : relever la limite d'e-mails (30 par heure par défaut avec un SMTP personnalisé).
+4. Désactiver le suivi des liens chez Resend (il peut déformer les liens d'invitation) et remettre les 3 modèles d'e-mail vus plus haut (liens `/auth/confirm?...`).
+
+## Notifications par e-mail
+Chaque personne choisit sur l'écran **Notifications** : immédiatement, un résumé par jour (à partir de 7 h UTC), ou jamais.
+Une notification déjà lue dans l'application n'est jamais envoyée par e-mail ; au-delà de 3 jours, elle n'est plus envoyée.
+Mise en route (une fois) :
+1. Exécuter `009_notifications_email.sql` ; activer les extensions **pg_cron** et **pg_net** (Database > Extensions).
+2. Secrets : `supabase secrets set CRON_SECRET=<mot de passe long au hasard> RESEND_API_KEY=re_... EMAIL_FROM="CommPro <notifications@votredomaine.com>" SITE_URL=https://suivi-com.netlify.app`
+3. Déployer : `supabase functions deploy envoyer-notifications --no-verify-jwt`
+4. Planifier l'envoi toutes les 5 minutes (SQL Editor, en remplaçant les 2 valeurs) :
+```sql
+select cron.schedule('envoyer-notifications', '*/5 * * * *', $$
+  select net.http_post(
+    url := 'https://<votre-projet>.supabase.co/functions/v1/envoyer-notifications',
+    headers := '{"x-cron-secret": "<le même CRON_SECRET>"}'::jsonb) $$);
+```
+La fonction envoie au plus 50 personnes par passage (2 par seconde) ; un refus définitif du service d'envoi (adresse invalide…) n'est pas réessayé.
+Tous les textes venant de la base sont échappés dans les e-mails, et seuls les liens internes à l'application y figurent.
+
+## Dépannage : « je ne reçois pas l'e-mail de confirmation »
+1. **Regarder la cause** : Supabase > Logs > Auth (ou Authentication > Logs) : l'erreur d'envoi y est écrite. Les causes habituelles :
+   *Email address not authorized* (le service de test n'écrit qu'aux membres de votre équipe Supabase), *rate limit* (2 e-mails par heure avec le service de test),
+   ou domaine non vérifié chez le prestataire SMTP.
+2. **Débloquer un test tout de suite** (sans e-mail) : dans le SQL Editor,
+   `update auth.users set email_confirmed_at = now() where email = 'adresse@exemple.com';` puis se connecter normalement.
+   Ou, le temps des essais seulement : Authentication > Sign In / Providers > Email > désactiver « Confirm email » (à remettre avant la mise en service).
+3. **Solution durable** : brancher un SMTP à vous (section « E-mails : à régler AVANT d'inviter de vrais utilisateurs »).
+4. Authentication > URL Configuration : *Site URL* = `https://suivi-com.netlify.app` et, dans *Redirect URLs*, ajouter `https://suivi-com.netlify.app/**`.
+5. La page de connexion distingue désormais « adresse non confirmée » de « mot de passe incorrect », propose **Renvoyer l'e-mail de confirmation**
+   et signale une adresse déjà inscrite (Supabase répond « succès » dans ce cas, sans rien envoyer, ce qui donnait l'impression d'un e-mail perdu).
+6. Les liens du modèle d'e-mail par défaut de Supabase fonctionnent aussi (route `/auth/callback`) ; les modèles personnalisés du README utilisent `/auth/confirm`.
