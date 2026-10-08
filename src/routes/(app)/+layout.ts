@@ -1,6 +1,11 @@
-import { browser } from '$app/environment';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
+
+// L'application connectée n'a pas besoin de rendu serveur (données privées, application installable) : tout
+// s'exécute dans le navigateur. C'est le seul endroit où l'on peut renouveler la session ET enregistrer ses cookies.
+// (Avant : le rendu serveur créait l'entreprise puis ne pouvait pas sauvegarder le nouveau jeton -> page d'erreur
+// au premier chargement après confirmation de l'adresse e-mail.)
+export const ssr = false;
 
 type Profil = {
   role: 'admin' | 'manager' | 'comptable' | 'commercial';
@@ -26,12 +31,17 @@ const ecrireLocal = (l: Local) => {
   try { localStorage.setItem(CLE_LOCALE, JSON.stringify(l)); } catch { /* stockage plein ou indisponible */ }
 };
 
+// Contenu (non vérifié, simple lecture) du jeton d'accès : sert uniquement à savoir si le hook y a mis tenant_id
+const claimsDe = (jeton: string | undefined): Record<string, unknown> => {
+  try { return JSON.parse(atob((jeton ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
+};
+
 export const load: LayoutLoad = async ({ parent, url }) => {
   const { supabase, session } = await parent();
 
-  // Hors ligne avec une session expirée (impossible à renouveler sans réseau) : on reste dans l'application
+  // Sans réseau et session expirée (impossible à renouveler) : on reste dans l'application
   if (!session) {
-    const local = browser && !navigator.onLine ? lireLocal() : null;
+    const local = !navigator.onLine ? lireLocal() : null;
     if (local) return { profil: local.profil, quota: local.quota, userId: local.userId, horsLigneAuDemarrage: true };
     redirect(303, '/login');
   }
@@ -45,36 +55,47 @@ export const load: LayoutLoad = async ({ parent, url }) => {
 
   if (erreurProfil) {
     // Réseau coupé : on n'essaie surtout pas de créer une entreprise, on utilise la copie locale
-    const local = browser ? lireLocal() : null;
+    const local = lireLocal();
     if (local && erreurProfil.code === 'HORS_LIGNE') {
       return { profil: local.profil, quota: local.quota, userId: local.userId, horsLigneAuDemarrage: true };
     }
-    throw erreurProfil;
+    error(500, `Impossible de charger votre profil : ${erreurProfil.message}`);
   }
 
   // Premier passage : on crée l'entreprise à partir des infos saisies à l'inscription
   if (!profil) {
     const m = session.user.user_metadata ?? {};
-    const { error } = await supabase.rpc('inscrire_entreprise', {
+    const { error: errInscription } = await supabase.rpc('inscrire_entreprise', {
       p_entreprise: m.entreprise ?? 'Mon entreprise',
       p_nom: m.nom ?? session.user.email,
       p_phone: m.phone ?? null,
       p_pays: m.pays ?? null,
       p_devise: m.devise ?? 'CFA'
     });
-    if (error) throw error;
-    await supabase.auth.refreshSession(); // récupère tenant_id / rôle dans le JWT
+    if (errInscription) error(500, `Création de l'entreprise impossible : ${errInscription.message}`);
     ({ data: profil } = await requete());
+    if (!profil) error(500, "Votre compte a été créé mais reste introuvable : rechargez la page.");
   }
+
+  // Le jeton doit porter tenant_id et user_role (hook « Customize Access Token »). Sinon la base refuse toutes les données.
+  let { data: { session: courante } } = await supabase.auth.getSession();
+  if (!claimsDe(courante?.access_token).tenant_id) {
+    await supabase.auth.refreshSession(); // nouveau jeton, émis après la création du profil
+    ({ data: { session: courante } } = await supabase.auth.getSession());
+    if (!claimsDe(courante?.access_token).tenant_id) {
+      error(500, "Configuration incomplète : le hook « Customize Access Token (JWT) Claims » n'est pas activé dans Supabase (Authentication > Auth Hooks). Voir le guide d'installation.");
+    }
+  }
+
   const p = profil as unknown as Profil;
 
-  // Le commercial n'accède qu'à son portail, à ses reçus et à son relevé
+  // Le commercial n'accède qu'à son portail, à ses reçus, à son relevé et à ses notifications
   if (p.role === 'commercial' && !['/portail', '/recu/', '/credit/', '/notifications'].some((x) => url.pathname.startsWith(x))) {
     redirect(303, '/portail');
   }
 
   const { data: quota } = await supabase.rpc('usage_plan');
   const q = quota as Quota | null;
-  if (browser) ecrireLocal({ userId: session.user.id, profil: p, quota: q });
+  ecrireLocal({ userId: session.user.id, profil: p, quota: q });
   return { profil: p, quota: q, userId: session.user.id, horsLigneAuDemarrage: false };
 };

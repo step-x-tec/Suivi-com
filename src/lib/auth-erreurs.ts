@@ -20,6 +20,9 @@ export function messageAuth(e: ErreurAuth): MessageAuth {
     return { texte: 'Cette adresse a déjà un compte : connectez-vous, ou utilisez « Mot de passe oublié ».', peutRenvoyer: true };
   if (est('weak_password', 'password should be'))
     return { texte: 'Mot de passe trop faible : 8 caractères minimum, avec des lettres et des chiffres.', peutRenvoyer: false };
+  // Supabase n'a pas pu remettre le message à l'expéditeur configuré (SMTP refusé, hook d'e-mail actif, identifiants faux…)
+  if (est('unexpected_failure', 'error sending'))
+    return { texte: "L'e-mail n'a pas pu être envoyé : le service d'envoi de CommPro est mal configuré (SMTP refusé par le prestataire). Contactez l'administrateur : ce n'est pas un problème de votre adresse ni de votre mot de passe.", peutRenvoyer: false };
   if (est('signup_disabled', 'signups not allowed'))
     return { texte: "Les inscriptions sont désactivées pour ce service.", peutRenvoyer: false };
   return { texte: e.message || 'Une erreur est survenue. Réessayez dans un instant.', peutRenvoyer: false };

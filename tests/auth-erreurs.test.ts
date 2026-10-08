@@ -17,6 +17,13 @@ describe('messages d\'authentification', () => {
     expect(messageAuth({ message: 'email rate limit exceeded' }).texte).toContain('Patientez');
     expect(messageAuth({ code: 'email_address_not_authorized', message: 'Email address not authorized' }).texte).toContain('SMTP');
   });
+  it('échec d\'envoi côté serveur (SMTP / hook) : message en français, sans proposer de renvoi', () => {
+    for (const e of [{ message: 'Error sending confirmation email' }, { message: 'Error sending recovery email' }]) {
+      const m = messageAuth(e);
+      expect(m.texte).toContain("n'a pas pu être envoyé");
+      expect(m.peutRenvoyer).toBe(false);
+    }
+  });
   it('compte existant, mot de passe faible, message inconnu conservé', () => {
     expect(messageAuth({ code: 'user_already_exists' }).texte).toContain('déjà un compte');
     expect(messageAuth({ code: 'weak_password' }).texte).toContain('8 caractères');

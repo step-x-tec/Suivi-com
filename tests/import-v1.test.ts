@@ -64,6 +64,10 @@ describe('conversion de la sauvegarde v1', () => {
     expect(r.avertissements.join(' | ')).toMatch(/règlement\(s\) de montant nul/);
     expect(r.avertissements.join(' | ')).toMatch(/clôture\(s\) d'un commercial introuvable/);
   });
+  it('un règlement lié à la clôture d\'un AUTRE commercial perd ce lien (la base le refuserait)', () => {
+    const S2 = { ...S, commerciaux: [...S.commerciaux.slice(0, 2)], reglements: [{ id: 'x', commId: 2, cloId: 'h1', type: 'remise', montant: 100, date: '2026-10-04' }] };
+    expect(normaliserV1(S2).payload.reglements[0].cloture_ref).toBeNull();
+  });
   it('refuse les fichiers qui ne sont pas une sauvegarde v1', () => {
     expect(normaliserV1(null).erreur).toBeTruthy();
     expect(normaliserV1({ format: 'commpro-v2' }).erreur).toMatch(/v2/);

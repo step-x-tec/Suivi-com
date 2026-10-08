@@ -91,7 +91,7 @@ export function normaliserV1(S: any): ResultatV1 {
   ignore(sansNom, 'attribution(s) sans nom ignorée(s)');
 
   // Clôtures (historique)
-  const clotures: any[] = []; const cloOk = new Set<string>(); let cloOrph = 0, datesIllisibles = 0, plafonnes = 0;
+  const clotures: any[] = []; const cloOk = new Set<string>(); const cloComm = new Map<string, string>(); let cloOrph = 0, datesIllisibles = 0, plafonnes = 0;
   for (const h of liste(S.historique)) {
     if (!comOk.has(String(h?.commId))) { cloOrph++; continue; }
     let created = dateIso(h.date) ?? dateIso(h.dateStr);
@@ -115,7 +115,7 @@ export function normaliserV1(S: any): ResultatV1 {
     if (Math.abs(brut - commissions - defauts - totalDivers - net) > 1) plafonnes++;
     clotures.push({ ref: String(h.id), commercial_ref: String(h.commId), method: h.method === 'vend' ? 'vend' : 'rest', created_at: created,
       brut, commissions, defauts, divers: totalDivers, net_final: net, lines, divers_lignes: divers });
-    cloOk.add(String(h.id));
+    cloOk.add(String(h.id)); cloComm.set(String(h.id), String(h.commId));
   }
   ignore(cloOrph, 'clôture(s) d\'un commercial introuvable ignorée(s)');
   ignore(datesIllisibles, 'clôture(s) à la date illisible : date du jour utilisée');
@@ -129,7 +129,7 @@ export function normaliserV1(S: any): ResultatV1 {
     if (montant <= 0) { regNuls++; continue; }
     const type = TYPES_REGLEMENT.has(r.type) ? r.type : 'autre';
     const created = Number.isFinite(Number(r.dateTs)) && Number(r.dateTs) > 0 ? new Date(Number(r.dateTs)).toISOString() : dateIso(r.date) ?? maintenant;
-    reglements.push({ commercial_ref: String(r.commId), cloture_ref: r.cloId != null && cloOk.has(String(r.cloId)) ? String(r.cloId) : null,
+    reglements.push({ commercial_ref: String(r.commId), cloture_ref: r.cloId != null && cloOk.has(String(r.cloId)) && cloComm.get(String(r.cloId)) === String(r.commId) ? String(r.cloId) : null,
       type, sens: type === 'ajustement' ? (r.sens === 'credit' ? 'credit' : 'debit') : null, montant,
       mode: MODES.has(r.mode) ? r.mode : null, reference: txt(r.ref), note: txt(r.note),
       date_reglement: (dateIso(r.date) ?? created).slice(0, 10), created_at: created });

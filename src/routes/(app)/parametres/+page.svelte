@@ -189,7 +189,7 @@
     <div><strong>{u.nom ?? u.email}</strong><div class="mut">{u.email}</div></div>
     <div class="row">
       <span class="badge">{ROLES[u.role] ?? u.role}</span>
-      {#if isAdmin && u.id !== data.session?.user.id}
+      {#if isAdmin && u.id !== data.userId}
         <button class="btn small" onclick={() => retirer(u)}>Retirer</button>
       {/if}
     </div>

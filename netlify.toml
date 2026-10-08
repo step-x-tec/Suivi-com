@@ -4,3 +4,12 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# En-têtes de sécurité (pas de CSP stricte : SvelteKit injecte de petits scripts en ligne)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

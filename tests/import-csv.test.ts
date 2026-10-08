@@ -41,7 +41,7 @@ describe('repérage des colonnes', () => {
   it('reconnaît accents, majuscules et synonymes', () => {
     const m = devinerMapping(['Nom complet', 'Téléphone', 'E-mail', 'Zone', 'Taux', 'Statut'], CHAMPS.commerciaux);
     expect(m).toMatchObject({ nom: 0, telephone: 1, zone: 3, pct_default: 4, status: 5, code: -1, groupe: -1 });
-    expect(m.email).toBe(-1); // « E-mail » → « email » doit être reconnu
+    expect(m.email).toBe(2); // « E-mail » doit être reconnu comme la colonne email
   });
 });
 

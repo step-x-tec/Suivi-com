@@ -238,6 +238,7 @@ end $$;
 
 revoke execute on function public.custom_access_token_hook from public, anon, authenticated;
 grant  execute on function public.custom_access_token_hook to supabase_auth_admin;
+grant  usage   on schema public to supabase_auth_admin;
 grant  select  on public.users to supabase_auth_admin;
 create policy "auth admin lit users" on public.users
   as permissive for select to supabase_auth_admin using (true);
@@ -266,6 +267,14 @@ create policy tenants_select on public.tenants for select to authenticated
   using (id = public.jwt_tenant());
 create policy tenants_update on public.tenants for update to authenticated
   using (id = public.jwt_tenant() and public.jwt_role() = 'admin');
+
+-- Chacun peut toujours lire SA fiche et SON entreprise, même si son jeton ne porte pas encore tenant_id
+-- (première connexion, ou hook activé après coup) : l'application peut alors se réparer toute seule
+-- (création de l'entreprise, renouvellement du jeton) au lieu d'afficher une erreur.
+create policy users_self_select on public.users for select to authenticated
+  using (id = auth.uid());
+create policy tenants_membre_select on public.tenants for select to authenticated
+  using (id in (select u.tenant_id from public.users u where u.id = auth.uid()));
 
 create policy users_select on public.users for select to authenticated
   using (tenant_id = public.jwt_tenant()

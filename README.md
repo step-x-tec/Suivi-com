@@ -2,6 +2,9 @@
 
 SvelteKit 2 + Svelte 5 + Supabase. Mobile-first, PWA.
 
+**À lire d'abord** : `INSTALLATION.md` (installation de zéro, ordre exact, premier essai) · `AUDIT.md` (audit complet, défauts corrigés, risques restants) · `API.md` (API publique).
+Controle d'installation : `supabase/verification.sql`. Réinitialisation : `supabase/reinitialisation.sql` (destructif).
+
 ## Démarrage
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.

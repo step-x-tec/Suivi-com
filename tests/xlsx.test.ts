@@ -31,7 +31,8 @@ describe('export Excel', () => {
     const texte = new TextDecoder().decode(x);
     expect(texte).toContain('A &amp; B &lt;1&gt;');
     expect(texte).toContain('<v>1500.5</v>');
-    expect(texte).not.toContain('\u0001');
+    expect(texte).not.toContain('ctrl\u0001'); // le caractère de contrôle est retiré du texte de la cellule
+    expect(texte).toContain('>ctrl</t>');
     expect(texte).toContain('xl/worksheets/sheet2.xml');
     expect(() => creerXlsx([])).toThrow();
   });
