@@ -1,5 +1,5 @@
 -- CommPro v2 — Contrôle d'installation. À exécuter dans le SQL Editor APRÈS installation_complete.sql.
--- Chaque ligne doit commencer par ✓. Une ligne ✗ dit précisément ce qui manque.
+-- Les lignes 6 et 7 (hook de jeton) sont facultatives : l'application n'en a plus besoin. Les autres doivent commencer par ✓. Une ligne ✗ dit précisément ce qui manque.
 
 select controle, resultat from (
   select 1 as n, 'Tables manquantes' as controle,
@@ -20,11 +20,11 @@ select controle, resultat from (
          coalesce((select string_agg(t, ', ') from unnest(array['trg_log_articles', 'trg_log_attr_ins', 'trg_log_attr_upd', 'trg_log_commerciaux', 'trg_log_groupes', 'trg_log_reglements', 'trg_meme_tenant_attributions', 'trg_meme_tenant_commerciaux', 'trg_meme_tenant_reglements', 'trg_meme_tenant_users', 'trg_notif_attr_ins', 'trg_notif_attr_upd', 'trg_notif_cloture_annulee', 'trg_notif_cloture_validee', 'trg_notif_reglement', 'trg_quota_clotures', 'trg_quota_commerciaux', 'trg_quota_equipe']) t
                     where not exists (select 1 from pg_trigger g where not g.tgisinternal and g.tgname = t)), '✓ aucun')
   union all
-  select 6, 'Hook de jeton : droit d''exécution pour Supabase Auth',
-         case when has_function_privilege('supabase_auth_admin', 'public.custom_access_token_hook(jsonb)', 'execute') then '✓ ok' else '✗ manquant' end
+  select 6, 'Hook de jeton (facultatif, inutile) : droit d''exécution',
+         case when has_function_privilege('supabase_auth_admin', 'public.custom_access_token_hook(jsonb)', 'execute') then '✓ ok' else 'ℹ non configuré (facultatif)' end
   union all
-  select 7, 'Hook de jeton : accès au schéma public pour Supabase Auth',
-         case when has_schema_privilege('supabase_auth_admin', 'public', 'usage') then '✓ ok' else '✗ manquant' end
+  select 7, 'Hook de jeton (facultatif, inutile) : accès au schéma',
+         case when has_schema_privilege('supabase_auth_admin', 'public', 'usage') then '✓ ok' else 'ℹ non configuré (facultatif)' end
   union all
   select 8, 'Fonctions sensibles appelables sans connexion (rôle anon) — doit être vide',
          coalesce((select string_agg(p.proname, ', ') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -35,7 +35,7 @@ select controle, resultat from (
          coalesce((select string_agg(p.proname, ', ') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                     where n.nspname = 'public' and p.prosecdef and p.prorettype <> 'trigger'::regtype
                       and has_function_privilege('authenticated', p.oid, 'execute')
-                      and p.proname <> all(array['annuler_cloture', 'creer_cle_api', 'creer_cloture', 'definir_preference_email', 'importer_v1', 'inscrire_entreprise', 'revoquer_cle_api', 'usage_plan'])), '✓ aucune')
+                      and p.proname <> all(array['annuler_cloture', 'creer_cle_api', 'creer_cloture', 'definir_preference_email', 'importer_v1', 'inscrire_entreprise', 'jwt_commercial', 'jwt_role', 'jwt_tenant', 'revoquer_cle_api', 'usage_plan'])), '✓ aucune')
   union all
   select 10, 'Un administrateur ne peut PAS modifier le plan de son entreprise',
          case when not has_column_privilege('authenticated', 'public.tenants', 'plan', 'update')

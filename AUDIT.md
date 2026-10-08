@@ -19,13 +19,14 @@ déploiement Netlify précédent avait réussi), ni appelé Brevo, Resend ou Fed
 ## Défauts trouvés et corrigés
 | Gravité | Constat | Correction |
 |---|---|---|
-| **Critique** | Après confirmation de l'adresse e-mail, le **premier chargement échouait** : le serveur créait l'entreprise mais ne pouvait pas enregistrer le nouveau jeton ; l'utilisateur restait bloqué sur une erreur jusqu'à expiration de sa session | L'application connectée s'exécute désormais dans le navigateur (qui sait renouveler et enregistrer la session) ; chacun peut lire sa propre fiche même sans jeton à jour ; le jeton est vérifié et renouvelé au besoin ; si le hook est absent, message explicite au lieu d'écrans vides |
+| **Critique** | Après confirmation de l'adresse e-mail, le **premier chargement échouait** : le serveur créait l'entreprise mais ne pouvait pas enregistrer le nouveau jeton ; l'utilisateur restait bloqué sur une erreur | L'application connectée s'exécute dans le navigateur ; chacun peut lire sa propre fiche et son entreprise sans jeton enrichi |
+| **Critique** | L'application **dépendait d'un hook du tableau de bord** (Customize Access Token) pour fonctionner : mal réglé ou absent, plus aucune donnée n'était visible (message « Configuration incomplète » observé en essai) | Suppression de la dépendance : `jwt_tenant()`, `jwt_role()` et `jwt_commercial()` lisent la table `users` à partir de l'identifiant vérifié par Supabase. Aucun réglage requis ; un changement de rôle ou un retrait d'accès joue **immédiatement** au lieu d'attendre l'expiration du jeton. Correctif pour base existante : `supabase/correctif_sans_hook.sql` |
 | **Critique (configuration)** | Un hook « Send Email » actif remplaçait l'envoi de Supabase : aucun e-mail ne partait, sans erreur visible | Contrôle n° 8-9 de `verification.sql`, étape 2 de `INSTALLATION.md` |
 | **Élevé** | Une ligne pouvait référencer un commercial, un article, un groupe ou une clôture **d'une autre entreprise** (les règles de sécurité ne contrôlaient que l'entreprise de la ligne elle-même) | Contrôle d'appartenance par déclencheur sur attributions, commerciaux, règlements et utilisateurs |
-| **Élevé** | Droit d'accès au schéma public pour le hook de jeton absent des migrations (ajouté seulement par le tableau de bord) | Ajouté à la migration 001 |
 | **Élevé** | **Injection de formule** dans les exports CSV : un nom de commercial commençant par `=` ou `@` s'exécutait à l'ouverture dans Excel | Préfixe de neutralisation (nombres non touchés) + test |
 | Moyen | Pas de page d'erreur : écran brut de SvelteKit | Page d'erreur en français avec « Réessayer » |
 | Moyen | Pas d'en-têtes de sécurité HTTP | Ajoutés dans `netlify.toml` (nosniff, anti-cadre, référent, permissions) |
+| Moyen | Règles de sécurité réévaluées pour chaque ligne lue | Fonctions d'identité appelées une seule fois par requête (`(select …)`) |
 | Moyen | Index manquants pour le tableau de bord, les rapports et le crédit | 4 index ajoutés |
 | Moyen | Import v1 : un règlement lié à la clôture d'un autre commercial aurait fait échouer tout l'import | Lien neutralisé à la conversion + test |
 | Faible | Écran Paramètres : identifiant de l'utilisateur lu depuis la session (vide hors ligne) | Utilise l'identifiant du profil |
@@ -34,7 +35,7 @@ déploiement Netlify précédent avait réussi), ni appelé Brevo, Resend ou Fed
 
 ## Sécurité : état
 - **Visiteur non connecté** : aucune politique de sécurité ne lui ouvre de table (contrôle n° 17) ; aucune fonction sensible ne lui est appelable (n° 8).
-- **Isolation entre entreprises** : chaque table filtre sur `tenant_id` du jeton ; les références croisées sont contrôlées par déclencheur.
+- **Isolation entre entreprises** : chaque table filtre sur l'entreprise de la personne connectée (lue en base) ; les références croisées sont contrôlées par déclencheur.
 - **Rôles** : le manager crée et clôture sans supprimer ; le comptable lit ; le commercial ne voit que ses données (portail).
 - **Plan** : un administrateur ne peut pas modifier lui-même son plan (contrôle n° 10). Les limites (commerciaux, clôtures, équipe) sont appliquées en base.
 - **Clés API** : seule l'empreinte est stockée et elle n'est pas lisible (n° 11) ; 60 requêtes par minute et par clé.

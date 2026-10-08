@@ -9,7 +9,7 @@ Controle d'installation : `supabase/verification.sql`. Réinitialisation : `supa
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.
 3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql` (dossier `supabase/migrations`).
-4. Supabase > Authentication > Hooks : activer *Custom Access Token* → `public.custom_access_token_hook`.
+4. Supabase > Authentication > Hooks : **n'activer aucun hook** (l'application lit l'entreprise et le rôle dans la base ; un hook mal réglé bloque la connexion ou les e-mails).
 5. Invitations et portail commercial (voir section ci-dessous).
 6. `npm run dev` · `npm test` · `npm run build` (déploiement Netlify, voir ci-dessous).
 

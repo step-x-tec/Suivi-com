@@ -1,7 +1,7 @@
 -- =====================================================================
 -- CommPro v2 — INSTALLATION COMPLÈTE (migrations 001 à 009, dans l'ordre)
 -- À coller et exécuter en une fois dans le SQL Editor d'un projet Supabase VIDE.
--- Ensuite : exécuter verification.sql, puis activer le hook de jeton (voir INSTALLATION.md).
+-- Ensuite : exécuter verification.sql (voir INSTALLATION.md). Aucun hook d'authentification n'est à activer.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -217,18 +217,35 @@ create table public.notifications (
 );
 
 -- ---------------------------------------------------------------------
--- 2. HELPERS JWT + HOOK D'AUTH (injecte tenant_id / rôle dans le token)
---    À activer : Auth > Hooks > Custom Access Token > public.custom_access_token_hook
+-- 2. IDENTITÉ DE LA PERSONNE CONNECTÉE (entreprise, rôle) + hook d'auth OPTIONNEL (inutile, ne pas activer)
 -- ---------------------------------------------------------------------
+-- L'entreprise et le rôle de la personne connectée sont lus dans la table users (via son identifiant, vérifié par Supabase) :
+-- AUCUN réglage du tableau de bord n'est nécessaire, et un changement de rôle ou un retrait d'accès joue immédiatement
+-- (avec un jeton enrichi par hook, il fallait attendre son expiration). Le jeton n'est consulté qu'en second choix, pour
+-- l'API (clôtures créées au nom d'une entreprise sans utilisateur connecté). Un utilisateur ne peut pas fabriquer ces
+-- champs : ils ne sont pas dans les données modifiables par lui (user_metadata) mais seulement ajoutables par un hook ou le serveur.
 create function public.jwt_tenant() returns uuid
-language sql stable as $$ select nullif(auth.jwt() ->> 'tenant_id','')::uuid $$;
+language sql stable security definer set search_path = public as $$
+  select coalesce((select u.tenant_id from public.users u where u.id = auth.uid()),
+                  nullif(auth.jwt() ->> 'tenant_id', '')::uuid)
+$$;
 
 create function public.jwt_role() returns text
-language sql stable as $$ select auth.jwt() ->> 'user_role' $$;
+language sql stable security definer set search_path = public as $$
+  select coalesce((select u.role from public.users u where u.id = auth.uid()), auth.jwt() ->> 'user_role')
+$$;
 
 create function public.jwt_commercial() returns uuid
-language sql stable as $$ select nullif(auth.jwt() ->> 'commercial_id','')::uuid $$;
+language sql stable security definer set search_path = public as $$
+  select coalesce((select u.commercial_id from public.users u where u.id = auth.uid()),
+                  nullif(auth.jwt() ->> 'commercial_id', '')::uuid)
+$$;
 
+-- Appelables seulement par une personne connectée (elles ne renvoient que SES propres informations)
+revoke execute on function public.jwt_tenant, public.jwt_role, public.jwt_commercial from public, anon;
+grant  execute on function public.jwt_tenant, public.jwt_role, public.jwt_commercial to authenticated, service_role;
+
+-- OPTIONNEL : le hook ci-dessous n'est plus nécessaire. Ne l'activez pas : un hook mal configuré bloque la connexion.
 create function public.custom_access_token_hook(event jsonb) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare
@@ -273,9 +290,9 @@ alter table public.notifications    enable row level security;
 
 -- Tenants / users
 create policy tenants_select on public.tenants for select to authenticated
-  using (id = public.jwt_tenant());
+  using (id = (select public.jwt_tenant()));
 create policy tenants_update on public.tenants for update to authenticated
-  using (id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 
 -- Chacun peut toujours lire SA fiche et SON entreprise, même si son jeton ne porte pas encore tenant_id
 -- (première connexion, ou hook activé après coup) : l'application peut alors se réparer toute seule
@@ -286,11 +303,11 @@ create policy tenants_membre_select on public.tenants for select to authenticate
   using (id in (select u.tenant_id from public.users u where u.id = auth.uid()));
 
 create policy users_select on public.users for select to authenticated
-  using (tenant_id = public.jwt_tenant()
-         and (public.jwt_role() in ('admin','manager','comptable') or id = auth.uid()));
+  using (tenant_id = (select public.jwt_tenant())
+         and ((select public.jwt_role()) in ('admin','manager','comptable') or id = auth.uid()));
 create policy users_admin_write on public.users for all to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin')
-  with check (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin')
+  with check (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 
 -- Lecture "staff" (admin / manager / comptable) sur les tables métier
 do $$
@@ -299,25 +316,25 @@ begin
   foreach t in array array['groupes','articles','commerciaux','attributions',
                            'clotures','reglements','activites'] loop
     execute format($f$create policy %I on public.%I for select to authenticated
-      using (tenant_id = public.jwt_tenant()
-             and public.jwt_role() in ('admin','manager','comptable'))$f$,
+      using (tenant_id = (select public.jwt_tenant())
+             and (select public.jwt_role()) in ('admin','manager','comptable'))$f$,
       t || '_staff_select', t);
   end loop;
 end $$;
 
 -- Portail commercial : uniquement ses propres données
 create policy commerciaux_self_select on public.commerciaux for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'commercial'
-         and id = public.jwt_commercial());
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'commercial'
+         and id = (select public.jwt_commercial()));
 create policy attributions_self_select on public.attributions for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'commercial'
-         and commercial_id = public.jwt_commercial());
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'commercial'
+         and commercial_id = (select public.jwt_commercial()));
 create policy clotures_self_select on public.clotures for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'commercial'
-         and commercial_id = public.jwt_commercial());
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'commercial'
+         and commercial_id = (select public.jwt_commercial()));
 create policy reglements_self_select on public.reglements for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'commercial'
-         and commercial_id = public.jwt_commercial());
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'commercial'
+         and commercial_id = (select public.jwt_commercial()));
 
 -- Lignes / divers : visibles si la clôture parente est visible (RLS de clotures)
 create policy cloture_lines_select on public.cloture_lines for select to authenticated
@@ -331,26 +348,26 @@ declare t text;
 begin
   foreach t in array array['groupes','articles','commerciaux','attributions'] loop
     execute format($f$create policy %I on public.%I for insert to authenticated
-      with check (tenant_id = public.jwt_tenant() and public.jwt_role() in ('admin','manager'))$f$,
+      with check (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) in ('admin','manager'))$f$,
       t || '_ins', t);
     execute format($f$create policy %I on public.%I for update to authenticated
-      using (tenant_id = public.jwt_tenant() and public.jwt_role() in ('admin','manager'))
-      with check (tenant_id = public.jwt_tenant())$f$,
+      using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) in ('admin','manager'))
+      with check (tenant_id = (select public.jwt_tenant()))$f$,
       t || '_upd', t);
     execute format($f$create policy %I on public.%I for delete to authenticated
-      using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin')$f$,
+      using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin')$f$,
       t || '_del', t);
   end loop;
 end $$;
 
 -- Règlements : insertion admin/manager ; jamais de update/delete direct (H4)
 create policy reglements_ins on public.reglements for insert to authenticated
-  with check (tenant_id = public.jwt_tenant() and public.jwt_role() in ('admin','manager'));
+  with check (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) in ('admin','manager'));
 
 -- Notifications : chacun les siennes
 create policy notifications_own on public.notifications for all to authenticated
-  using (user_id = auth.uid() and tenant_id = public.jwt_tenant())
-  with check (user_id = auth.uid() and tenant_id = public.jwt_tenant());
+  using (user_id = auth.uid() and tenant_id = (select public.jwt_tenant()))
+  with check (user_id = auth.uid() and tenant_id = (select public.jwt_tenant()));
 
 -- Clôtures / journal : aucune policy d'écriture => écriture via fonctions uniquement
 
@@ -861,7 +878,7 @@ create index on public.paiements (tenant_id, created_at desc);
 
 alter table public.paiements enable row level security;
 create policy paiements_select on public.paiements for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 -- aucune policy d'écriture : tout passe par les Edge Functions (service role)
 
 -- Tarifs : source unique côté serveur (FCFA)
@@ -1539,7 +1556,7 @@ create index on public.api_cles (tenant_id, created_at desc);
 
 alter table public.api_cles enable row level security;
 create policy api_cles_select on public.api_cles for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 -- l'empreinte ne doit jamais sortir de la base, même pour l'administrateur
 revoke select on public.api_cles from authenticated, anon;
 grant  select (id, tenant_id, nom, prefixe, created_at, derniere_utilisation, revoquee_at) on public.api_cles to authenticated;

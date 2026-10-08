@@ -14,11 +14,10 @@ Compter environ 40 minutes. Ne sautez pas d'étape : chacune a causé un blocage
 3. SQL Editor : exécuter `supabase/verification.sql`. Les lignes 1 à 13 et 17 doivent commencer par ✓. Les lignes 14 à 16 sont informatives
    (la 15 indiquera « 1 sur 2 » tant que l'envoi d'e-mails n'est pas planifié).
 
-## 2. Hooks d'authentification (la source du blocage des e-mails)
-Authentication > **Auth Hooks** (il y a plusieurs lignes distinctes) :
-- **Customize Access Token (JWT) Claims** : **ACTIVER**, type *Postgres function*, fonction `public.custom_access_token_hook`.
-- **Send Email** : doit rester **désactivé**. S'il est actif, Supabase n'envoie plus aucun e-mail lui-même.
-- Tous les autres hooks : désactivés.
+## 2. Hooks d'authentification : n'en activer AUCUN
+Authentication > **Auth Hooks** : tous les hooks doivent être **désactivés** (Customize Access Token, **Send Email**, etc.).
+L'application n'en a pas besoin : elle lit l'entreprise et le rôle de chaque personne dans la base. Un hook « Send Email » actif empêche
+Supabase d'envoyer le moindre e-mail, et un hook de jeton mal réglé bloque la connexion.
 
 ## 3. Authentification
 - Authentication > URL Configuration : **Site URL** `https://suivi-com.netlify.app` ; **Redirect URLs** : ajouter `https://suivi-com.netlify.app/**`.
@@ -59,4 +58,4 @@ Puis Deploys > **Clear cache and deploy site** (les variables sont lues pendant 
 7. Notifications : la cloche affiche les événements.
 8. (Plan Gratuit) créer un 4e commercial → doit être **refusé** avec un message sur la limite du plan.
 9. Mode avion : rouvrir l'application, enregistrer un règlement, désactiver le mode avion → il part tout seul.
-En cas d'écran d'erreur : lisez le message, il indique la cause (hook absent, profil introuvable…).
+En cas d'écran d'erreur : lisez le message, il indique la cause (profil introuvable, création de l'entreprise refusée…).

@@ -31,11 +31,6 @@ const ecrireLocal = (l: Local) => {
   try { localStorage.setItem(CLE_LOCALE, JSON.stringify(l)); } catch { /* stockage plein ou indisponible */ }
 };
 
-// Contenu (non vérifié, simple lecture) du jeton d'accès : sert uniquement à savoir si le hook y a mis tenant_id
-const claimsDe = (jeton: string | undefined): Record<string, unknown> => {
-  try { return JSON.parse(atob((jeton ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
-};
-
 export const load: LayoutLoad = async ({ parent, url }) => {
   const { supabase, session } = await parent();
 
@@ -75,16 +70,6 @@ export const load: LayoutLoad = async ({ parent, url }) => {
     if (errInscription) error(500, `Création de l'entreprise impossible : ${errInscription.message}`);
     ({ data: profil } = await requete());
     if (!profil) error(500, "Votre compte a été créé mais reste introuvable : rechargez la page.");
-  }
-
-  // Le jeton doit porter tenant_id et user_role (hook « Customize Access Token »). Sinon la base refuse toutes les données.
-  let { data: { session: courante } } = await supabase.auth.getSession();
-  if (!claimsDe(courante?.access_token).tenant_id) {
-    await supabase.auth.refreshSession(); // nouveau jeton, émis après la création du profil
-    ({ data: { session: courante } } = await supabase.auth.getSession());
-    if (!claimsDe(courante?.access_token).tenant_id) {
-      error(500, "Configuration incomplète : le hook « Customize Access Token (JWT) Claims » n'est pas activé dans Supabase (Authentication > Auth Hooks). Voir le guide d'installation.");
-    }
   }
 
   const p = profil as unknown as Profil;

@@ -25,7 +25,7 @@ create index on public.paiements (tenant_id, created_at desc);
 
 alter table public.paiements enable row level security;
 create policy paiements_select on public.paiements for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 -- aucune policy d'écriture : tout passe par les Edge Functions (service role)
 
 -- Tarifs : source unique côté serveur (FCFA)

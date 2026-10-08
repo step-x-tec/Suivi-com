@@ -17,7 +17,7 @@ create index on public.api_cles (tenant_id, created_at desc);
 
 alter table public.api_cles enable row level security;
 create policy api_cles_select on public.api_cles for select to authenticated
-  using (tenant_id = public.jwt_tenant() and public.jwt_role() = 'admin');
+  using (tenant_id = (select public.jwt_tenant()) and (select public.jwt_role()) = 'admin');
 -- l'empreinte ne doit jamais sortir de la base, même pour l'administrateur
 revoke select on public.api_cles from authenticated, anon;
 grant  select (id, tenant_id, nom, prefixe, created_at, derniere_utilisation, revoquee_at) on public.api_cles to authenticated;
