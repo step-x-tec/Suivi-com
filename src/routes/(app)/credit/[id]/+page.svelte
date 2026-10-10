@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { invalidateAll } from '$app/navigation';
   import { fmt, dateCourte } from '$lib/format';
   import { LIBELLES, effet, impactReglements, mouvements, statutSolde, type Sens, type TypeReglement } from '$lib/credit';
@@ -81,6 +83,8 @@
     if (error) err = error.message;
     await invalidateAll();
   }
+  // lien « + Règlement » depuis la fiche du commercial : le formulaire s'ouvre directement
+  onMount(() => { if (canEdit && page.url.searchParams.get('reglement')) nouveau(); });
 </script>
 
 <a href="/credit" class="mut">‹ Crédit</a>

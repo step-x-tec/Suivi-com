@@ -1,5 +1,5 @@
 -- =====================================================================
--- CommPro v2 — INSTALLATION COMPLÈTE (migrations 001 à 009, dans l'ordre)
+-- CommPro v2 — INSTALLATION COMPLÈTE (migrations 001 à 010, dans l'ordre)
 -- À coller et exécuter en une fois dans le SQL Editor d'un projet Supabase VIDE.
 -- Ensuite : exécuter verification.sql (voir INSTALLATION.md). Aucun hook d'authentification n'est à activer.
 -- =====================================================================
@@ -1711,3 +1711,10 @@ $$;
 
 revoke execute on function public.emails_a_envoyer, public.marquer_emails_envoyes from public, anon, authenticated;
 grant  execute on function public.emails_a_envoyer, public.marquer_emails_envoyes to service_role;
+
+-- ---------------------------------------------------------------------
+-- >>> 010_adresse_entreprise.sql
+-- ---------------------------------------------------------------------
+-- CommPro v2 — Migration 010 : adresse de l'entreprise (en-tête des reçus et des relevés).
+alter table public.tenants add column adresse text;
+grant update (adresse) on public.tenants to authenticated;  -- le plan, lui, reste non modifiable depuis l'application

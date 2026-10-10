@@ -10,7 +10,7 @@
 
   const t = $derived(data.tenant);
   const init = data.tenant;
-  let f = $state({ name: init?.name ?? '', email: init?.email ?? '', phone: init?.phone ?? '', country: init?.country ?? '', devise: init?.devise ?? 'CFA' });
+  let f = $state({ name: init?.name ?? '', email: init?.email ?? '', phone: init?.phone ?? '', country: init?.country ?? '', adresse: init?.adresse ?? '', devise: init?.devise ?? 'CFA' });
   let busy = $state(false), msg = $state(''), err = $state('');
 
   const ROLES: Record<string, string> = { admin: 'Admin', manager: 'Manager', comptable: 'Comptable', commercial: 'Commercial' };
@@ -21,7 +21,7 @@
     busy = true; msg = ''; err = '';
     const n = (v: string) => v.trim() || null;
     const { error } = await data.supabase.from('tenants')
-      .update({ name: f.name.trim(), email: n(f.email), phone: n(f.phone), country: n(f.country), devise: f.devise })
+      .update({ name: f.name.trim(), email: n(f.email), phone: n(f.phone), country: n(f.country), adresse: n(f.adresse), devise: f.devise })
       .eq('id', data.profil.tenant_id);
     busy = false;
     if (error) { err = error.message; return; }
@@ -115,6 +115,7 @@
     <label>Email<input type="email" bind:value={f.email} disabled={!isAdmin} /></label>
     <label>Téléphone<input type="tel" bind:value={f.phone} disabled={!isAdmin} /></label>
   </div>
+  <label>Adresse (affichée sur les reçus)<input bind:value={f.adresse} disabled={!isAdmin} autocomplete="street-address" /></label>
   <div class="grid2">
     <label>Pays<input bind:value={f.country} disabled={!isAdmin} /></label>
     <label>Devise

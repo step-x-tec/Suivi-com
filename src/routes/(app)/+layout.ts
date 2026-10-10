@@ -12,7 +12,7 @@ type Profil = {
   nom: string | null;
   tenant_id: string;
   commercial_id: string | null;
-  tenants: { name: string; devise: string };
+  tenants: { name: string; devise: string; adresse?: string | null; phone?: string | null; email?: string | null };
 };
 
 export type Quota = {
@@ -43,7 +43,7 @@ export const load: LayoutLoad = async ({ parent, url }) => {
 
   const requete = () =>
     supabase.from('users')
-      .select('role, nom, tenant_id, commercial_id, tenants(name, devise)')
+      .select('role, nom, tenant_id, commercial_id, tenants(name, devise, adresse, phone, email)')
       .eq('id', session.user.id).maybeSingle();
 
   let { data: profil, error: erreurProfil } = await requete();

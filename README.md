@@ -8,7 +8,7 @@ Controle d'installation : `supabase/verification.sql`. Réinitialisation : `supa
 ## Démarrage
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.
-3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql` (dossier `supabase/migrations`).
+3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql`, `010_adresse_entreprise.sql` (dossier `supabase/migrations`).
 4. Supabase > Authentication > Hooks : **n'activer aucun hook** (l'application lit l'entreprise et le rôle dans la base ; un hook mal réglé bloque la connexion ou les e-mails).
 5. Invitations et portail commercial (voir section ci-dessous).
 6. `npm run dev` · `npm test` · `npm run build` (déploiement Netlify, voir ci-dessous).
@@ -32,6 +32,9 @@ Controle d'installation : `supabase/verification.sql`. Réinitialisation : `supa
 - [x] Export Excel (.xlsx) sans dépendance : rapports (une feuille par onglet) et historique des clôtures
 - [x] API publique (plans Pro+) : clés dans Paramètres, 5 routes, limite 60 requêtes/minute, documentation `API.md`
 - [x] Notifications par e-mail (immédiat / résumé quotidien / jamais, au choix de chacun) via Resend
+- [x] Attributions : filtres croisés (commercial, groupe, article, texte), tri sur 6 critères, pagination 25/50/100, vue condensée
+- [x] Reçus et relevés : en-tête complet de l'entreprise (adresse, téléphone, e-mail) et zones de signature
+- [x] Commerciaux : tri (nom, solde, articles, écoulement), vue grille ou liste, avatars ; fiche complète (résumé financier, derniers règlements, actions rapides Clôture / Attribuer / Règlement / Relevé)
 - [ ] Notifications push · clôtures hors ligne (brouillons) ← prochain
 
 ## Règle d'or

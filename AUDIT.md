@@ -5,7 +5,7 @@ Relu en entier : 9 migrations SQL (≈ 1 700 lignes), 7 fonctions serveur, 28 é
 
 | Vérification | Résultat |
 |---|---|
-| **81 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 81 / 81 réussis |
+| **91 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 91 / 91 réussis |
 | Compilation **TypeScript stricte** des 17 bibliothèques et du code de chaque écran | 0 erreur |
 | Analyse statique des migrations : ordre de création, colonnes de chaque INSERT/UPDATE, fonctions appelées, sécurité de ligne sur chaque table, droits d'exécution | 0 problème |
 | Fichier Excel relu avec openpyxl et ouvert avec LibreOffice | conforme |

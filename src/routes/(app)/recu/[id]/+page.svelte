@@ -19,9 +19,15 @@
   {#if c.status === 'annulee'}<span class="badge err">Annulée</span>{/if}
 </div>
 
+<div class="card" style="text-align:center">
+  <strong style="font-size:1.1rem">{data.profil.tenants.name}</strong>
+  {#if data.profil.tenants.adresse}<div class="mut">{data.profil.tenants.adresse}</div>{/if}
+  {#if data.profil.tenants.phone || data.profil.tenants.email}<div class="mut">{[data.profil.tenants.phone, data.profil.tenants.email].filter(Boolean).join(' · ')}</div>{/if}
+</div>
+
 <h1>Reçu {c.reference}</h1>
 <p class="mut">
-  {data.profil.tenants.name} · {dateCourte(c.created_at)}<br />
+  {dateCourte(c.created_at)}<br />
   Commercial : <strong>{c.commerciaux.nom}</strong>{c.commerciaux.code ? ` (${c.commerciaux.code})` : ''}
 </p>
 
@@ -56,6 +62,11 @@
   {#if Number(c.divers) > 0}<div class="row"><span>Divers déduits</span><strong>− {fmt(Number(c.divers), devise)}</strong></div>{/if}
   <hr style="border-color:var(--line)" />
   <div class="row"><span>Net à payer</span><span class="net">{fmt(Number(c.net_final), devise)}</span></div>
+</div>
+
+<div class="grid2">
+  <div class="card" style="min-height:96px"><div class="mut">Signature du commercial</div></div>
+  <div class="card" style="min-height:96px"><div class="mut">Signature de l'entreprise</div></div>
 </div>
 
 <div class="no-print">

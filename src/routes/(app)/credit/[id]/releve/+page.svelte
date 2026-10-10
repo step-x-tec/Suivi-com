@@ -11,9 +11,15 @@
   <a href={`/credit/${data.c.id}`} class="mut">‹ Retour</a>
 </div>
 
+<div class="card" style="text-align:center">
+  <strong style="font-size:1.1rem">{data.profil.tenants.name}</strong>
+  {#if data.profil.tenants.adresse}<div class="mut">{data.profil.tenants.adresse}</div>{/if}
+  {#if data.profil.tenants.phone || data.profil.tenants.email}<div class="mut">{[data.profil.tenants.phone, data.profil.tenants.email].filter(Boolean).join(' · ')}</div>{/if}
+</div>
+
 <h1>Relevé de compte</h1>
 <p class="mut">
-  {data.profil.tenants.name} · édité le {dateCourte(new Date().toISOString())}<br />
+  Édité le {dateCourte(new Date().toISOString())}<br />
   Commercial : <strong>{data.c.nom}</strong>{data.c.code ? ` (${data.c.code})` : ''}
 </p>
 

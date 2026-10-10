@@ -2,6 +2,7 @@
   import { invalidateAll } from '$app/navigation';
   import { fmt } from '$lib/format';
   import { pleine } from '$lib/plans';
+  import { initiales, statsAttributions, trierCommerciaux, type CleTriCom } from '$lib/commerciaux';
   let { data } = $props();
   const canEdit = $derived(['admin', 'manager'].includes(data.profil.role));
   const devise = $derived(data.profil.tenants.devise);
@@ -33,6 +34,12 @@
         `${c.nom} ${c.code ?? ''} ${c.zone ?? ''} ${c.telephone ?? ''}`.toLowerCase().includes(q.toLowerCase())
     )
   );
+
+  let tri = $state<CleTriCom>('nom'), sens = $state<'asc' | 'desc'>('asc'), grille = $state(false);
+  const TRIS: [CleTriCom, string][] = [['nom', 'Nom'], ['solde', 'Solde'], ['articles', "Nombre d'articles"], ['ecoulement', "Taux d'écoulement"]];
+  const stats = $derived(statsAttributions(data.attributions));
+  const soldesNum = $derived(new Map<string, number>([...data.soldes].map(([id, x]) => [id, Number(x.solde)] as [string, number])));
+  const triees = $derived(trierCommerciaux(liste, stats, soldesNum, tri, sens));
 
   async function enregistrer(e: SubmitEvent) {
     e.preventDefault();
@@ -104,11 +111,24 @@
   </div>
 {/if}
 
-{#each liste as c (c.id)}
+{#if !f}
+  <div class="row" style="margin-bottom:.8rem">
+    <select bind:value={tri} style="margin-top:0;max-width:62%">{#each TRIS as [k, l]}<option value={k}>Trier : {l}</option>{/each}</select>
+    <div style="display:flex;gap:.4rem">
+      <button class="btn small" onclick={() => (sens = sens === 'asc' ? 'desc' : 'asc')} aria-label="Sens du tri">{sens === 'asc' ? '↑' : '↓'}</button>
+      <button class="btn small" onclick={() => (grille = !grille)}>{grille ? 'Liste' : 'Grille'}</button>
+    </div>
+  </div>
+{/if}
+
+<div class={grille ? 'grid2' : ''}>
+{#each triees as c (c.id)}
   {@const s = data.soldes.get(c.id)}
-  <div class="card">
-    <a href={`/commerciaux/${c.id}`} class="row">
-      <div>
+  {@const st = stats.get(c.id)}
+  <div class="card" style={grille ? 'margin:0' : ''}>
+    <a href={`/commerciaux/${c.id}`} class="row" style="align-items:flex-start;gap:.6rem">
+      <span class="avatar">{initiales(c.nom)}</span>
+      <div style="flex:1;min-width:0">
         <strong>{c.nom}</strong>
         <div class="mut">{[c.code, c.zone, c.groupes?.nom].filter(Boolean).join(' · ')}</div>
       </div>
@@ -118,8 +138,13 @@
         </strong>
       {/if}
     </a>
+    {#if st && st.nb}
+      <div class="bar"><i style={`width:${Math.round(st.ecoulement)}%`}></i></div>
+      <div class="mut">{st.nb} article(s) · {Math.round(st.ecoulement)} % écoulé</div>
+    {/if}
     {#if canEdit}<div class="actions"><button class="btn small" onclick={() => editer(c)}>Modifier</button></div>{/if}
   </div>
 {:else}
   <p class="mut">Aucun commercial.</p>
 {/each}
+</div>
