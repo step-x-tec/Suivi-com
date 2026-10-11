@@ -42,7 +42,7 @@ Les montants sont calculés **côté serveur** (`creer_cloture`). `src/lib/calc.
 en direct, testé pour rester identique au SQL.
 
 ## Invitations et portail commercial (une seule fois)
-1. Déployer la fonction : `supabase functions deploy inviter-membre` (réservée à l'admin, vérifiée côté serveur).
+1. Déployer la fonction : `supabase functions deploy inviter-membre --no-verify-jwt` (réservée à l'admin, vérifiée par la fonction elle-même ; sans cette option la passerelle peut répondre « Invalid JWT »).
 2. Supabase > Authentication > URL Configuration : *Site URL* = l'adresse de l'application (ex. `https://suivi-com.netlify.app`).
 3. Supabase > Authentication > Email Templates : remplacer le lien dans chaque modèle par :
    - **Invite user** : `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/bienvenue`

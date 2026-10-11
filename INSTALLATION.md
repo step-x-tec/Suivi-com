@@ -36,13 +36,26 @@ Authentication > Emails > SMTP Settings (Brevo) : activer le SMTP personnalisé.
 ## 5. Fonctions serveur (Edge Functions)
 Avec la CLI Supabase connectée au nouveau projet (`supabase login`, `supabase link --project-ref <ref>`) :
 ```
-supabase functions deploy inviter-membre
+supabase functions deploy inviter-membre --no-verify-jwt
 supabase functions deploy api-v1 --no-verify-jwt
 supabase functions deploy envoyer-notifications --no-verify-jwt
 supabase secrets set CRON_SECRET=<long mot de passe au hasard> RESEND_API_KEY=re_... EMAIL_FROM="CommPro <adresse@votredomaine>" SITE_URL=https://suivi-com.netlify.app
 ```
 (Les e-mails de notification utilisent Resend : sans domaine vérifié, ne déployez pas `envoyer-notifications` pour l'instant ; l'application fonctionne sans.)
-Les fonctions `paiement-*` (FedaPay) restent à l'arrêt : ne pas les déployer tant que le paiement n'est pas repris.
+Les fonctions `paiement-*` (FedaPay) restent à l'arrêt : ne pas les déployer tant que le paiement n'est pas repris
+(les boutons de paiement sont masqués par `src/lib/config.ts`).
+`inviter-membre` vérifie elle-même l'identité de l'appelant et son rôle d'administrateur : l'option `--no-verify-jwt` évite que la passerelle de
+Supabase refuse un jeton valide (erreur « Invalid JWT ») avec les nouvelles clés de signature.
+**Sans la CLI** : Supabase > Edge Functions > « Deploy a new function », nom `inviter-membre`, coller le contenu de
+`supabase/functions/inviter-membre/index.ts`, puis dans les réglages de la fonction **désactiver « Verify JWT »**.
+
+### Essayer les invitations sans paiement
+Le plan Gratuit n'autorise qu'**1 membre d'équipe** (vous) : inviter un manager ou un comptable est refusé avec « Limite du plan atteinte ».
+Inviter un **commercial** (portail) n'est pas limité. Pour tester une équipe, passez votre entreprise en Pro à la main (SQL Editor) :
+```
+update public.tenants set plan = 'pro', plan_renouvellement = current_date + 30 where email = 'votre@adresse.com';
+```
+Une invitation envoie un e-mail : l'envoi (Brevo) doit donc fonctionner. Sinon la fonction répond « Error sending invite email ».
 
 ## 6. Netlify
 Site configuration > Environment variables : `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_ANON_KEY` (Supabase > Project Settings > API).

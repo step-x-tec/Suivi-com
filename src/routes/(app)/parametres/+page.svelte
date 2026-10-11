@@ -4,6 +4,7 @@
   import { appelerMembres } from '$lib/membres';
   import { GRILLE, libelleMax, pctUsage, prixPlan, type Periode } from '$lib/plans';
   import { invoquer } from '$lib/fonctions';
+  import { PAIEMENT_ACTIF } from '$lib/config';
   import { fmt } from '$lib/format';
   let { data } = $props();
   const isAdmin = $derived(data.profil.role === 'admin');
@@ -151,10 +152,12 @@
     {/each}
   {/if}
 </div>
-<div class="seg" style="margin-top:.8rem">
-  <button class:on={periode === 'mensuel'} onclick={() => (periode = 'mensuel')}>Mensuel</button>
-  <button class:on={periode === 'annuel'} onclick={() => (periode = 'annuel')}>Annuel (2 mois offerts)</button>
-</div>
+{#if PAIEMENT_ACTIF}
+  <div class="seg" style="margin-top:.8rem">
+    <button class:on={periode === 'mensuel'} onclick={() => (periode = 'mensuel')}>Mensuel</button>
+    <button class:on={periode === 'annuel'} onclick={() => (periode = 'annuel')}>Annuel (2 mois offerts)</button>
+  </div>
+{/if}
 {#each GRILLE as g}
   {@const courant = g.id === (data.quota?.plan ?? 'free')}
   <div class="card" style={courant ? 'border-color:var(--acc)' : ''}>
@@ -163,7 +166,7 @@
       <strong>{g.prix ? fmt(prixPlan(g.prix, periode), 'CFA') + (periode === 'annuel' ? ' / an' : ' / mois') : 'Gratuit'}</strong>
     </div>
     <div class="mut">{g.resume}</div>
-    {#if isAdmin && g.id !== 'free'}
+    {#if isAdmin && g.id !== 'free' && PAIEMENT_ACTIF}
       <button class="btn small" style="margin-top:.6rem" disabled={payBusy !== ''} onclick={() => payer(g.id)}>
         {payBusy === g.id ? 'Redirection…' : courant ? 'Renouveler' : 'Choisir'} · Mobile Money
       </button>
@@ -171,6 +174,12 @@
   </div>
 {/each}
 {#if payErr}<p class="err">{payErr}</p>{/if}
+{#if !PAIEMENT_ACTIF}
+  <div class="card">
+    <p class="mut" style="margin:0 0 .6rem">Le paiement en ligne n'est pas encore ouvert. Pour changer de plan, contactez STEP-X : votre abonnement sera activé dès réception du règlement.</p>
+    <a class="btn small" href="mailto:stepx.tec@gmail.com?subject=Changement de plan CommPro">Demander un changement de plan</a>
+  </div>
+{/if}
 {#if data.paiements.length}
   <h2>Paiements</h2>
   {#each data.paiements as pa (pa.id)}
