@@ -34,20 +34,28 @@ Authentication > Emails > SMTP Settings (Brevo) : activer le SMTP personnalisé.
 - **Test** : « Mot de passe oublié » sur la page de connexion, puis vérifier Brevo > Transactionnel > Email > Logs.
 
 ## 5. Fonctions serveur (Edge Functions)
-Avec la CLI Supabase connectée au nouveau projet (`supabase login`, `supabase link --project-ref <ref>`) :
-```
-supabase functions deploy inviter-membre --no-verify-jwt
-supabase functions deploy api-v1 --no-verify-jwt
-supabase functions deploy envoyer-notifications --no-verify-jwt
-supabase secrets set CRON_SECRET=<long mot de passe au hasard> RESEND_API_KEY=re_... EMAIL_FROM="CommPro <adresse@votredomaine>" SITE_URL=https://suivi-com.netlify.app
-```
-(Les e-mails de notification utilisent Resend : sans domaine vérifié, ne déployez pas `envoyer-notifications` pour l'instant ; l'application fonctionne sans.)
-Les fonctions `paiement-*` (FedaPay) restent à l'arrêt : ne pas les déployer tant que le paiement n'est pas repris
-(les boutons de paiement sont masqués par `src/lib/config.ts`).
-`inviter-membre` vérifie elle-même l'identité de l'appelant et son rôle d'administrateur : l'option `--no-verify-jwt` évite que la passerelle de
-Supabase refuse un jeton valide (erreur « Invalid JWT ») avec les nouvelles clés de signature.
-**Sans la CLI** : Supabase > Edge Functions > « Deploy a new function », nom `inviter-membre`, coller le contenu de
-`supabase/functions/inviter-membre/index.ts`, puis dans les réglages de la fonction **désactiver « Verify JWT »**.
+Chaque fonction est un **fichier unique** (`supabase/functions/<nom>/index.ts`) : collez-le tel quel dans l'éditeur du tableau de bord.
+(Une première version importait des fichiers partagés et échouait avec « Module not found » dans l'éditeur ; ce n'est plus le cas.
+Si vous modifiez `supabase/functions/_shared/`, relancez `python3 scripts/assembler_fonctions.py` pour régénérer les fichiers.)
+
+Supabase > Edge Functions > « Deploy a new function » > **Via Editor** :
+1. Champ **Function name** (en bas) : saisissez le nom **exact** du tableau ci-dessous. Le nom proposé par défaut (« clever-handler »,
+   « dynamic-action »…) ne marcherait pas : l'application appelle la fonction par son nom.
+2. Supprimez le code d'exemple, collez le contenu du fichier, cliquez **Deploy function**.
+3. Une fois déployée : Edge Functions > la fonction > Details > **désactivez « Enforce JWT Verification »** si le tableau l'indique.
+
+| Nom exact | Fichier | Désactiver la vérification JWT | À déployer maintenant ? |
+|---|---|---|---|
+| `inviter-membre` | `inviter-membre/index.ts` | oui (elle contrôle elle-même l'administrateur) | **oui** : invitations d'équipe et de commerciaux |
+| `api-v1` | `api-v1/index.ts` | oui (clés `cp_…`, pas des jetons Supabase) | plus tard (plan Pro) |
+| `envoyer-notifications` | `envoyer-notifications/index.ts` | oui (appelée par la base avec un secret) | plus tard (e-mails de notification, Resend) |
+| `paiement-creer`, `paiement-verifier` | `…/index.ts` | non | à l'arrêt (paiement en pause) |
+| `paiement-webhook` | `paiement-webhook/index.ts` | oui (FedaPay n'envoie pas de jeton) | à l'arrêt (paiement en pause) |
+
+**Secrets** (Edge Functions > Secrets) : `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` existent déjà automatiquement. Ajoutez au besoin :
+`CRON_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`, `SITE_URL` (notifications) ; `FEDAPAY_SECRET_KEY`, `FEDAPAY_ENV`, `SITE_URL` (paiement).
+
+**Avec la CLI** (alternative) : `supabase functions deploy <nom>` (ajouter `--no-verify-jwt` pour les fonctions « oui » du tableau).
 
 ### Essayer les invitations sans paiement
 Le plan Gratuit n'autorise qu'**1 membre d'équipe** (vous) : inviter un manager ou un comptable est refusé avec « Limite du plan atteinte ».

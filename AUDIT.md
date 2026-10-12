@@ -5,7 +5,7 @@ Relu en entier : 9 migrations SQL (≈ 1 700 lignes), 7 fonctions serveur, 28 é
 
 | Vérification | Résultat |
 |---|---|
-| **91 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 91 / 91 réussis |
+| **100 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 100 / 100 réussis |
 | Compilation **TypeScript stricte** des 17 bibliothèques et du code de chaque écran | 0 erreur |
 | Analyse statique des migrations : ordre de création, colonnes de chaque INSERT/UPDATE, fonctions appelées, sécurité de ligne sur chaque table, droits d'exécution | 0 problème |
 | Fichier Excel relu avec openpyxl et ouvert avec LibreOffice | conforme |
@@ -29,6 +29,7 @@ déploiement Netlify précédent avait réussi), ni appelé Brevo, Resend ou Fed
 | Moyen | Règles de sécurité réévaluées pour chaque ligne lue | Fonctions d'identité appelées une seule fois par requête (`(select …)`) |
 | Moyen | Index manquants pour le tableau de bord, les rapports et le crédit | 4 index ajoutés |
 | Moyen | Import v1 : un règlement lié à la clôture d'un autre commercial aurait fait échouer tout l'import | Lien neutralisé à la conversion + test |
+| Moyen | Les fonctions serveur importaient des fichiers partagés : impossibles à déployer depuis l'éditeur du tableau de bord (« Module not found ») | Fonctions assemblées en fichier unique (script + test qui garantit que les copies restent identiques) |
 | Faible | Écran Paramètres : identifiant de l'utilisateur lu depuis la session (vide hors ligne) | Utilise l'identifiant du profil |
 | Faible | Erreur d'envoi d'e-mail affichée en anglais | Message en français (déjà livré) |
 | Test | 2 attentes erronées dans la suite de tests (le code était juste) | Corrigées |
