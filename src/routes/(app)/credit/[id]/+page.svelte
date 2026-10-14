@@ -59,7 +59,7 @@
     let horsLigne = !navigator.onLine;
     if (!horsLigne) {
       const { error } = await data.supabase.from('reglements').upsert(ligne, { onConflict: 'id', ignoreDuplicates: true });
-      if (error?.code === 'HORS_LIGNE') horsLigne = true;
+      if (error?.code === 'HORS_LIGNE' || error?.code === 'DELAI') horsLigne = true; // un délai dépassé : l'envoi est rejoué sans risque de doublon (identifiant fixé)
       else if (error) { busy = false; err = error.message; return; }
     }
     if (horsLigne) {

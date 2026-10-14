@@ -16,7 +16,9 @@ const DELAI_RESEAU = 8000; // réseau très lent : on bascule sur le cache plut�
 
 sw.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(STATIQUE).then((c) => c.addAll([...build, ...files])).then(() => sw.skipWaiting())
+    caches.open(STATIQUE)
+      .then(async (c) => { await c.addAll([...build, ...files]); try { await c.add('/'); } catch { /* page d'accueil indisponible : sans conséquence */ } })
+      .then(() => sw.skipWaiting())
   );
 });
 
@@ -51,6 +53,19 @@ async function reseauPuisCache(req: Request, nom: string): Promise<Response> {
   }
 }
 
+// Toutes les pages de l'application sont le MÊME fichier HTML (aucune donnée dedans) : hors ligne, ou si le réseau est trop lent,
+// on sert la copie gardée à l'installation, quelle que soit l'adresse demandée.
+async function navigation(req: Request): Promise<Response> {
+  try {
+    return await Promise.race([
+      fetch(req),
+      new Promise<Response>((_, rejeter) => setTimeout(() => rejeter(new Error('delai')), DELAI_RESEAU))
+    ]);
+  } catch {
+    return (await caches.match('/')) ?? Response.error();
+  }
+}
+
 sw.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -61,7 +76,7 @@ sw.addEventListener('fetch', (event) => {
       event.respondWith(caches.match(req).then((r) => r ?? fetch(req)));
       return;
     }
-    if (url.pathname.startsWith('/auth/')) return; // liens d'email : jamais de cache
+    if (req.mode === 'navigate') { event.respondWith(navigation(req)); return; }
     event.respondWith(reseauPuisCache(req, PAGES));
     return;
   }

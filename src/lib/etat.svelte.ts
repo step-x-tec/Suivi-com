@@ -23,7 +23,7 @@ export async function synchroniser(supabase: SupabaseClient, userId: string) {
         // upsert + ignoreDuplicates = INSERT ... ON CONFLICT DO NOTHING : renvoyer deux fois ne duplique rien
         const { error } = await supabase.from(a.table).upsert(a.payload, { onConflict: 'id', ignoreDuplicates: true });
         if (!error) return { ok: true };
-        if (error.code === 'HORS_LIGNE') return { reseau: true };
+        if (error.code === 'HORS_LIGNE' || error.code === 'DELAI') return { reseau: true };
         return { erreur: error.message };
       },
       { supprimer: supprimerAction, refuser: marquerRefus }

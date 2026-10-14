@@ -12,6 +12,7 @@ describe('messages des fonctions serveur', () => {
   });
   it('hors ligne, limite de requêtes, erreurs serveur, message inconnu', () => {
     expect(messageFonction(503, { code: 'HORS_LIGNE', message: 'Pas de connexion : cette action nécessite internet.' }, 'x')).toContain('Pas de connexion');
+    expect(messageFonction(504, { code: 'DELAI', message: 'Le serveur met trop de temps à répondre.' }, 'x')).toContain('trop de temps');
     expect(messageFonction(429, null, 'x')).toContain('patientez');
     expect(messageFonction(500, null, 'x')).toContain('Erreur du serveur (500)');
     expect(messageFonction(400, { message: 'Corps invalide' }, 'x')).toBe('Corps invalide');

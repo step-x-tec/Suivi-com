@@ -66,8 +66,20 @@ update public.tenants set plan = 'pro', plan_renouvellement = current_date + 30 
 Une invitation envoie un e-mail : l'envoi (Brevo) doit donc fonctionner. Sinon la fonction répond « Error sending invite email ».
 
 ## 6. Netlify
-Site configuration > Environment variables : `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_ANON_KEY` (Supabase > Project Settings > API).
-Puis Deploys > **Clear cache and deploy site** (les variables sont lues pendant la construction).
+Le site est désormais **statique** : de simples fichiers servis par le réseau de Netlify, **sans fonction Netlify** (la page « Functions » de
+Netlify doit rester vide). Il n'y a donc plus de « This function has crashed » ni d'« Inactivity Timeout » côté Netlify.
+- Site configuration > Environment variables : `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_ANON_KEY` (Supabase > Project Settings > API).
+- Build command `npm run build`, Publish directory `build` (déjà fixés par `netlify.toml`).
+- Puis Deploys > **Clear cache and deploy site** (les variables sont lues pendant la construction).
+
+### Si l'application est lente ou n'ouvre pas
+1. Ouvrez dans le navigateur `https://<votre-projet>.supabase.co/auth/v1/health` : une petite réponse JSON doit s'afficher en moins d'une seconde.
+   Sinon le problème vient de Supabase, pas de l'application.
+2. Supabase > page d'accueil du projet : le statut doit être « Healthy ». Les projets de l'offre gratuite sont **mis en pause après une période
+   d'inactivité** : cliquez sur « Restore project » (la remise en route prend quelques minutes).
+3. Netlify > Site configuration > Environment variables : l'adresse `PUBLIC_SUPABASE_URL` doit être celle du projet **actuel**
+   (si vous avez recréé le projet Supabase, elle change, et il faut redéployer).
+4. L'application affiche désormais « Le serveur met trop de temps à répondre » au bout de 30 secondes au lieu d'attendre sans fin.
 
 ## 7. Premier essai (dans cet ordre)
 1. Créer un compte depuis la page d'inscription → vous arrivez sur le tableau de bord (si « Confirm email » est actif : confirmer d'abord).

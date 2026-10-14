@@ -105,7 +105,7 @@ principaux 4 secondes après l'ouverture) ; les données affichées sont celles 
 
 ## Déploiement sur Netlify
 - Le **contenu du dossier** (là où se trouvent `package.json`, `netlify.toml`, `src/`, `supabase/`) doit être à la **racine** du dépôt GitHub, pas dans un sous-dossier.
-- Node 22 est imposé par `.nvmrc` et `netlify.toml` (Node 24 est refusé).
+- Le site est **statique** (aucune fonction Netlify) : toutes les adresses renvoient vers l'application chargée dans le navigateur. Node 22 est imposé par `.nvmrc` et `netlify.toml`.
 - Netlify > Site configuration > Environment variables : ajouter `PUBLIC_SUPABASE_URL` et `PUBLIC_SUPABASE_ANON_KEY`
   **avant** le déploiement (elles sont lues pendant la construction ; sans elles le build échoue).
 - Si Netlify répond « Unable to access repository » : Site configuration > Build & deploy > Continuous deployment >

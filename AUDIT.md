@@ -5,7 +5,7 @@ Relu en entier : 9 migrations SQL (≈ 1 700 lignes), 7 fonctions serveur, 28 é
 
 | Vérification | Résultat |
 |---|---|
-| **100 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 100 / 100 réussis |
+| **104 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 104 / 104 réussis |
 | Compilation **TypeScript stricte** des 17 bibliothèques et du code de chaque écran | 0 erreur |
 | Analyse statique des migrations : ordre de création, colonnes de chaque INSERT/UPDATE, fonctions appelées, sécurité de ligne sur chaque table, droits d'exécution | 0 problème |
 | Fichier Excel relu avec openpyxl et ouvert avec LibreOffice | conforme |
@@ -29,6 +29,7 @@ déploiement Netlify précédent avait réussi), ni appelé Brevo, Resend ou Fed
 | Moyen | Règles de sécurité réévaluées pour chaque ligne lue | Fonctions d'identité appelées une seule fois par requête (`(select …)`) |
 | Moyen | Index manquants pour le tableau de bord, les rapports et le crédit | 4 index ajoutés |
 | Moyen | Import v1 : un règlement lié à la clôture d'un autre commercial aurait fait échouer tout l'import | Lien neutralisé à la conversion + test |
+| **Critique** | **Lenteurs et plantages de Netlify** (« This function has crashed – Task timed out after 30 seconds », « Inactivity Timeout ») : chaque page était rendue par une fonction Netlify qui interrogeait Supabase ; dès que Supabase répondait lentement, la fonction était coupée à 30 s et plus rien ne s'affichait | Site **statique** (plus aucune fonction Netlify, plus aucun appel serveur vers Supabase) ; délai maximal de 30 s côté navigateur avec message clair ; coque de l'application conservée hors ligne pour toute adresse ; chargement du profil et du plan en parallèle |
 | Moyen | Les fonctions serveur importaient des fichiers partagés : impossibles à déployer depuis l'éditeur du tableau de bord (« Module not found ») | Fonctions assemblées en fichier unique (script + test qui garantit que les copies restent identiques) |
 | Faible | Écran Paramètres : identifiant de l'utilisateur lu depuis la session (vide hors ligne) | Utilise l'identifiant du profil |
 | Faible | Erreur d'envoi d'e-mail affichée en anglais | Message en français (déjà livré) |

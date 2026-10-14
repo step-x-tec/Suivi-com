@@ -10,6 +10,7 @@
   let pays = $state('Togo'), devise = $state('CFA');
   let busy = $state(false), err = $state(''), msg = $state('');
   let peutRenvoyer = $state(false);
+  let lent = $state(false); // la réponse tarde : on rassure au lieu de laisser un écran figé
 
   async function reinitialiser() {
     err = ''; msg = '';
@@ -33,7 +34,8 @@
 
   async function submit(e: SubmitEvent) {
     e.preventDefault();
-    busy = true; err = ''; msg = ''; peutRenvoyer = false;
+    busy = true; err = ''; msg = ''; peutRenvoyer = false; lent = false;
+    const minuteur = setTimeout(() => (lent = true), 8000);
     const auth = data.supabase.auth;
     if (mode === 'connexion') {
       const { error } = await auth.signInWithPassword({ email, password });
@@ -49,6 +51,7 @@
       else if (adresseDejaInscrite(res.user)) { err = messageAuth({ code: 'user_already_exists' }).texte; peutRenvoyer = true; }
       else { msg = `Compte créé. Un message de confirmation vient d'être envoyé à ${email} : ouvrez-le (pensez au dossier spam), puis connectez-vous.`; peutRenvoyer = true; }
     }
+    clearTimeout(minuteur);
     busy = false;
   }
 </script>
@@ -83,6 +86,7 @@
       <button type="button" class="btn small" style="margin-bottom:.6rem" onclick={reinitialiser}>Mot de passe oublié ?</button>
     {/if}
     {#if page.url.searchParams.get('erreur') === 'lien'}<p class="err">Lien expiré, déjà utilisé ou ouvert sur un autre appareil. Si votre adresse est confirmée, connectez-vous simplement.</p>{/if}
+    {#if busy && lent}<p class="mut">Le serveur met du temps à répondre… patientez quelques secondes.</p>{/if}
     {#if err}<p class="err">{err}</p>{/if}
     {#if msg}<p class="ok">{msg}</p>{/if}
     {#if peutRenvoyer}

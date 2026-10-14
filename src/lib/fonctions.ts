@@ -4,7 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 // Le message de supabase-js (« Edge Function returned a non-2xx status code ») ne dit jamais POURQUOI : on lit le statut et le corps.
 export function messageFonction(statut: number | undefined, corps: any, defaut: string): string {
   if (typeof corps?.erreur === 'string') return corps.erreur;                    // erreur métier renvoyée par nos fonctions
-  if (corps?.code === 'HORS_LIGNE' && typeof corps?.message === 'string') return corps.message;
+  if ((corps?.code === 'HORS_LIGNE' || corps?.code === 'DELAI') && typeof corps?.message === 'string') return corps.message;
   if (statut === 404) return "Cette fonction n'est pas installée sur le serveur (Supabase > Edge Functions). Voir INSTALLATION.md, étape 5.";
   if (statut === 401) return 'Accès refusé par le serveur. Reconnectez-vous ; si cela persiste, redéployez la fonction avec l\'option --no-verify-jwt.';
   if (statut === 403) return 'Action refusée pour votre compte.';

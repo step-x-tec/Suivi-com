@@ -46,12 +46,14 @@ export const load: LayoutLoad = async ({ parent, url }) => {
       .select('role, nom, tenant_id, commercial_id, tenants(name, devise, adresse, phone, email)')
       .eq('id', session.user.id).maybeSingle();
 
-  let { data: profil, error: erreurProfil } = await requete();
+  const [reponseProfil, reponseQuota] = await Promise.all([requete(), supabase.rpc('usage_plan')]);
+  let { data: profil, error: erreurProfil } = reponseProfil;
+  let quotaData: unknown = reponseQuota.data;
 
   if (erreurProfil) {
     // Réseau coupé : on n'essaie surtout pas de créer une entreprise, on utilise la copie locale
     const local = lireLocal();
-    if (local && erreurProfil.code === 'HORS_LIGNE') {
+    if (local && (erreurProfil.code === 'HORS_LIGNE' || erreurProfil.code === 'DELAI')) {
       return { profil: local.profil, quota: local.quota, userId: local.userId, horsLigneAuDemarrage: true };
     }
     error(500, `Impossible de charger votre profil : ${erreurProfil.message}`);
@@ -70,6 +72,7 @@ export const load: LayoutLoad = async ({ parent, url }) => {
     if (errInscription) error(500, `Création de l'entreprise impossible : ${errInscription.message}`);
     ({ data: profil } = await requete());
     if (!profil) error(500, "Votre compte a été créé mais reste introuvable : rechargez la page.");
+    quotaData = (await supabase.rpc('usage_plan')).data;
   }
 
   const p = profil as unknown as Profil;
@@ -79,8 +82,7 @@ export const load: LayoutLoad = async ({ parent, url }) => {
     redirect(303, '/portail');
   }
 
-  const { data: quota } = await supabase.rpc('usage_plan');
-  const q = quota as Quota | null;
+  const q = quotaData as Quota | null;
   ecrireLocal({ userId: session.user.id, profil: p, quota: q });
   return { profil: p, quota: q, userId: session.user.id, horsLigneAuDemarrage: false };
 };
