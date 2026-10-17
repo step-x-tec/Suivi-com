@@ -12,7 +12,7 @@ select controle, resultat from (
   select 3, 'Vue solde_commercial', case when to_regclass('public.solde_commercial') is not null then '✓ présente' else '✗ MANQUANTE' end
   union all
   select 4, 'Fonctions manquantes',
-         coalesce((select string_agg(f, ', ') from unnest(array['activer_plan', 'alertes_retard', 'annuler_cloture', 'api_verifier', 'creer_cle_api', 'creer_cloture', 'creer_cloture_api', 'custom_access_token_hook', 'definir_preference_email', 'dest_admins', 'dest_commercial', 'emails_a_envoyer', 'fmt_montant', 'importer_v1', 'inscrire_entreprise', 'jwt_commercial', 'jwt_role', 'jwt_tenant', 'limites_plan', 'log_activite', 'marquer_emails_envoyes', 'notifier', 'plan_effectif', 'revoquer_cle_api', 'tarif_plan', 'trg_meme_tenant', 'trg_notif_attribution', 'trg_notif_cloture_annulee', 'trg_notif_cloture_validee', 'trg_notif_reglement', 'trg_quota_clotures', 'trg_quota_commerciaux', 'trg_quota_equipe', 'usage_plan']) f
+         coalesce((select string_agg(f, ', ') from unnest(array['activer_plan', 'admin_changer_plan', 'admin_entreprises', 'admin_paiements', 'est_super_admin', 'alertes_retard', 'annuler_cloture', 'api_verifier', 'creer_cle_api', 'creer_cloture', 'creer_cloture_api', 'custom_access_token_hook', 'definir_preference_email', 'dest_admins', 'dest_commercial', 'emails_a_envoyer', 'fmt_montant', 'importer_v1', 'inscrire_entreprise', 'jwt_commercial', 'jwt_role', 'jwt_tenant', 'limites_plan', 'log_activite', 'marquer_emails_envoyes', 'notifier', 'plan_effectif', 'revoquer_cle_api', 'tarif_plan', 'trg_meme_tenant', 'trg_notif_attribution', 'trg_notif_cloture_annulee', 'trg_notif_cloture_validee', 'trg_notif_reglement', 'trg_quota_clotures', 'trg_quota_commerciaux', 'trg_quota_equipe', 'usage_plan']) f
                     where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                                        where n.nspname = 'public' and p.proname = f)), '✓ aucune')
   union all
@@ -35,7 +35,7 @@ select controle, resultat from (
          coalesce((select string_agg(p.proname, ', ') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                     where n.nspname = 'public' and p.prosecdef and p.prorettype <> 'trigger'::regtype
                       and has_function_privilege('authenticated', p.oid, 'execute')
-                      and p.proname <> all(array['annuler_cloture', 'creer_cle_api', 'creer_cloture', 'definir_preference_email', 'importer_v1', 'inscrire_entreprise', 'jwt_commercial', 'jwt_role', 'jwt_tenant', 'revoquer_cle_api', 'usage_plan'])), '✓ aucune')
+                      and p.proname <> all(array['admin_changer_plan', 'admin_entreprises', 'admin_paiements', 'annuler_cloture', 'creer_cle_api', 'creer_cloture', 'definir_preference_email', 'est_super_admin', 'importer_v1', 'inscrire_entreprise', 'jwt_commercial', 'jwt_role', 'jwt_tenant', 'revoquer_cle_api', 'usage_plan'])), '✓ aucune')
   union all
   select 10, 'Un administrateur ne peut PAS modifier le plan de son entreprise',
          case when not has_column_privilege('authenticated', 'public.tenants', 'plan', 'update')
@@ -68,4 +68,7 @@ select controle, resultat from (
   select 17, 'Politiques de sécurité ouvertes aux visiteurs non connectés — doit être vide',
          coalesce((select string_agg(tablename || '.' || policyname, ', ') from pg_policies
                     where schemaname = 'public' and roles && array['public', 'anon']::name[]), '✓ aucune')
+  union all
+  select 18, 'Super administrateurs STEP-X désignés (information)',
+         (select count(*) from public.platform_admins)::text || ' compte(s) — à désigner : voir INSTALLATION.md, étape 8'
 ) c order by n;

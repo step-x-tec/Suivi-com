@@ -25,6 +25,10 @@
   <a class="card row" href={l.href}><span>{l.icone} {l.nom}</span><span class="mut">›</span></a>
 {/each}
 
+{#if data.superAdmin}
+  <a class="card row" href="/admin" style="border-color:var(--acc)"><span>🛡️ Espace STEP-X (administration)</span><span class="mut">›</span></a>
+{/if}
+
 <h2>Thème</h2>
 <div class="seg" style="grid-template-columns:repeat(3,1fr)">
   {#each ['auto', 'dark', 'light'] as t}

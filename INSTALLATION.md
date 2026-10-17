@@ -72,6 +72,11 @@ Netlify doit rester vide). Il n'y a donc plus de « This function has crashed »
 - Build command `npm run build`, Publish directory `build` (déjà fixés par `netlify.toml`).
 - Puis Deploys > **Clear cache and deploy site** (les variables sont lues pendant la construction).
 
+### « Un problème est survenu » à chaque lancement
+Presque toujours une copie périmée de l'application gardée par le navigateur (service worker d'une ancienne version). L'application se répare
+d'elle-même une fois ; sinon, bouton **Réinitialiser l'application** sur cet écran. À la main : Chrome > Paramètres du site >
+Stockage > Effacer les données de `suivi-com.netlify.app`. Le message affiche maintenant la cause exacte entre parenthèses : envoyez-la-moi.
+
 ### Si l'application est lente ou n'ouvre pas
 1. Ouvrez dans le navigateur `https://<votre-projet>.supabase.co/auth/v1/health` : une petite réponse JSON doit s'afficher en moins d'une seconde.
    Sinon le problème vient de Supabase, pas de l'application.
