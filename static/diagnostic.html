@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Diagnostic CommPro</title>
+<style>
+  body { font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 1rem; background: #0f1115; color: #e8eaf0; max-width: 640px; margin-inline: auto; }
+  h1 { font-size: 1.25rem; }
+  .l { border: 1px solid #262b36; border-radius: 12px; padding: .7rem .8rem; margin: .55rem 0; background: #171a21; word-break: break-word; }
+  .ok { color: #2ecc71 } .ko { color: #ef5350 } .i { color: #8b93a7 }
+  small { color: #8b93a7 }
+  button, a.b { display: block; text-align: center; font: inherit; font-weight: 700; padding: .85rem 1rem; border-radius: 12px; border: 0; background: #f5a524; color: #1a1204; width: 100%; margin: .5rem 0; text-decoration: none; cursor: pointer; }
+  a.b.s { background: #171a21; color: #e8eaf0; border: 1px solid #262b36; }
+</style>
+</head>
+<body>
+<h1>Diagnostic CommPro</h1>
+<p><small>Cette page fonctionne même si l'application ne démarre pas. Envoyez-en une capture d'écran complète.</small></p>
+<div id="r"><div class="l">Analyse en cours…</div></div>
+<button id="reparer">Réparer : effacer les copies gardées et recharger</button>
+<a class="b s" href="/">Retour à l'application</a>
+<script>
+(function () {
+  var lignes = [];
+  function ajoute(titre, etat, detail) {
+    var cls = etat === true ? 'ok' : etat === false ? 'ko' : 'i';
+    var icone = etat === true ? '✓' : etat === false ? '✗' : 'ℹ';
+    var d = document.createElement('div'); d.className = 'l';
+    var b = document.createElement('b'); b.className = cls; b.textContent = icone + ' ' + titre; d.appendChild(b);
+    if (detail) { d.appendChild(document.createElement('br')); var s = document.createElement('span'); s.textContent = detail; d.appendChild(s); }
+    lignes.push(d);
+  }
+  function minuter(promesse, ms) {
+    return Promise.race([promesse, new Promise(function (_, ko) { setTimeout(function () { ko(new Error('délai de ' + (ms / 1000) + ' s dépassé')); }, ms); })]);
+  }
+  async function analyser() {
+    ajoute('Appareil', null, new Date().toLocaleString('fr-FR') + ' · ' + (navigator.onLine ? 'en ligne' : 'HORS LIGNE') + ' · ' + navigator.userAgent.slice(0, 110));
+
+    // 1. quelle version est réellement publiée sur Netlify ?
+    try {
+      var t0 = performance.now();
+      var rep = await minuter(fetch('/_app/version.json', { cache: 'no-store' }), 10000);
+      var texte = await rep.text(); var v = JSON.parse(texte).version;
+      ajoute('Version publiée sur le site', true, v + ' (' + Math.round(performance.now() - t0) + ' ms)');
+    } catch (e) { ajoute('Version publiée sur le site', false, 'illisible : ' + e.message + ' → le site n\'est pas le site statique attendu, ou le déploiement a échoué.'); }
+
+    // 2. reste d'ancienne version serveur ?
+    try {
+      var r2 = await minuter(fetch('/__data.json', { cache: 'no-store' }), 10000);
+      var ct = (r2.headers.get('content-type') || '');
+      if (ct.indexOf('json') >= 0) ajoute('Reste d\'une ancienne version serveur', false, 'le site répond encore avec des données serveur : des fichiers obsolètes sont encore dans le dépôt (src/routes/+layout.server.ts…). Relancez un déploiement avec « Clear cache and deploy site ».');
+      else ajoute('Reste d\'une ancienne version serveur', true, 'aucun (site statique)');
+    } catch (e) { ajoute('Reste d\'une ancienne version serveur', null, 'non vérifié : ' + e.message); }
+
+    // 3. service worker et caches
+    try {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      ajoute('Service worker', null, regs.length ? regs.map(function (r) { return (r.active ? 'actif' : r.installing ? 'en installation' : r.waiting ? 'en attente' : '?') + ' — ' + r.scope; }).join(' | ') : 'aucun');
+    } catch (e) { ajoute('Service worker', null, 'indisponible : ' + e.message); }
+    try {
+      var noms = await caches.keys(); var detail = [];
+      for (var i = 0; i < noms.length; i++) { var c = await caches.open(noms[i]); detail.push(noms[i] + ' (' + (await c.keys()).length + ')'); }
+      ajoute('Caches du navigateur', null, detail.length ? detail.join(' · ') : 'aucun');
+    } catch (e) { ajoute('Caches du navigateur', null, 'indisponibles : ' + e.message); }
+
+    // 4. Supabase répond-il, et à quelle vitesse ? (adresse déduite du cookie de connexion, sinon à saisir)
+    var m = /sb-([a-z0-9]+)-auth-token/.exec(document.cookie);
+    if (m) {
+      try {
+        var t1 = performance.now();
+        var rs = await minuter(fetch('https://' + m[1] + '.supabase.co/auth/v1/health', { cache: 'no-store' }), 15000);
+        ajoute('Supabase (' + m[1] + '.supabase.co)', true, 'répond en ' + Math.round(performance.now() - t1) + ' ms (statut ' + rs.status + (rs.status === 401 ? ', normal sans clé' : '') + ')');
+      } catch (e) { ajoute('Supabase (' + m[1] + '.supabase.co)', false, 'ne répond pas : ' + e.message + ' → projet en pause ? (Supabase > « Restore project »), ou mauvaise adresse dans Netlify.'); }
+    } else ajoute('Supabase', null, 'adresse non détectée (vous n\'êtes pas connecté sur cet appareil).');
+
+    // 5. dernière erreur du navigateur
+    var derniere = null; try { derniere = localStorage.getItem('commpro:derniere-erreur'); } catch (e) {}
+    ajoute('Dernière erreur enregistrée', derniere ? false : null, derniere || 'aucune');
+
+    var cible = document.getElementById('r'); cible.textContent = '';
+    lignes.forEach(function (l) { cible.appendChild(l); });
+  }
+  document.getElementById('reparer').addEventListener('click', async function () {
+    this.disabled = true; this.textContent = 'Réparation…';
+    try { var regs = await navigator.serviceWorker.getRegistrations(); for (var i = 0; i < regs.length; i++) await regs[i].unregister(); } catch (e) {}
+    try { var noms = await caches.keys(); for (var j = 0; j < noms.length; j++) await caches.delete(noms[j]); } catch (e) {}
+    try { localStorage.removeItem('commpro:derniere-erreur'); } catch (e) {}
+    location.href = '/';
+  });
+  analyser();
+})();
+</script>
+</body>
+</html>

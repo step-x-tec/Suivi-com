@@ -5,7 +5,7 @@ Relu en entier : 9 migrations SQL (≈ 1 700 lignes), 7 fonctions serveur, 28 é
 
 | Vérification | Résultat |
 |---|---|
-| **107 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 107 / 107 réussis |
+| **112 tests automatiques**, exécutés pour de bon (13 fichiers : calcul de clôture, crédit, rapports, import, API, e-mails, hors ligne, Excel…) | 112 / 112 réussis |
 | Compilation **TypeScript stricte** des 17 bibliothèques et du code de chaque écran | 0 erreur |
 | Analyse statique des migrations : ordre de création, colonnes de chaque INSERT/UPDATE, fonctions appelées, sécurité de ligne sur chaque table, droits d'exécution | 0 problème |
 | Fichier Excel relu avec openpyxl et ouvert avec LibreOffice | conforme |
@@ -35,6 +35,8 @@ déploiement Netlify précédent avait réussi), ni appelé Brevo, Resend ou Fed
 | Faible | Écran Paramètres : identifiant de l'utilisateur lu depuis la session (vide hors ligne) | Utilise l'identifiant du profil |
 | Faible | Erreur d'envoi d'e-mail affichée en anglais | Message en français (déjà livré) |
 | Test | 2 attentes erronées dans la suite de tests (le code était juste) | Corrigées |
+
+- **Espace Super Admin (STEP-X)** : réservé aux comptes de `platform_admins` (table fermée à l'application) ; chaque fonction `admin_*` revérifie le droit en base ; changement de plan, journal et notification au client enregistrés.
 
 ## Sécurité : état
 - **Visiteur non connecté** : aucune politique de sécurité ne lui ouvre de table (contrôle n° 17) ; aucune fonction sensible ne lui est appelable (n° 8).

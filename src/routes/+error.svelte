@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
+  import { version } from '$app/environment';
 
   const CLE = 'commpro:reparation';
 
@@ -28,5 +29,7 @@
   <p class="mut">{page.error?.message ?? ''}</p>
   <a class="btn primary" href="/" style="display:block;text-align:center;line-height:1.9;margin-bottom:.5rem">Retour à l'accueil</a>
   <button class="btn" onclick={reinitialiser}>Réinitialiser l'application</button>
+  <a class="btn" href="/diagnostic.html" style="display:block;text-align:center;line-height:1.9;margin-top:.5rem">Diagnostic</a>
   <p class="mut" style="margin-top:.8rem">« Réinitialiser » efface les copies de l'application gardées sur cet appareil (vos données restent sur le serveur).</p>
+  <p class="mut">Version de l'application : {version}</p>
 </div>

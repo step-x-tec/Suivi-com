@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { version } from '$app/environment';
   import { adresseDejaInscrite, messageAuth } from '$lib/auth-erreurs';
   let { data } = $props();
 
@@ -96,4 +97,5 @@
       {busy ? '…' : mode === 'connexion' ? 'Se connecter' : "Créer mon compte"}
     </button>
   </form>
+  <p class="mut" style="margin-top:1.5rem;font-size:.8rem">Version {version}</p>
 </div>

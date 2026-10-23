@@ -86,6 +86,14 @@ Stockage > Effacer les données de `suivi-com.netlify.app`. Le message affiche m
    (si vous avez recréé le projet Supabase, elle change, et il faut redéployer).
 4. L'application affiche désormais « Le serveur met trop de temps à répondre » au bout de 30 secondes au lieu d'attendre sans fin.
 
+## 6 bis. Devenir Super Admin (STEP-X uniquement)
+L'écran **Plus > Administration** (STEP-X : toutes les entreprises, changement de plan à la main, paiements) n'apparaît que pour les comptes inscrits
+dans la table `platform_admins`. Après vous être inscrit une première fois, dans le SQL Editor :
+```
+insert into public.platform_admins (user_id) select id from auth.users where email = 'stepx.tec@gmail.com';
+```
+Aucun client ne peut se donner ce droit : la table n'est lisible ni modifiable depuis l'application.
+
 ## 7. Premier essai (dans cet ordre)
 1. Créer un compte depuis la page d'inscription → vous arrivez sur le tableau de bord (si « Confirm email » est actif : confirmer d'abord).
 2. Plus > Paramètres : le nom de l'entreprise apparaît.

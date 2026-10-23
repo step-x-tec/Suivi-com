@@ -8,6 +8,14 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>try{var t=localStorage.getItem("theme");if(t&&t!=="auto")document.documentElement.dataset.theme=t}catch(e){}</script>
+    <script>
+      // garde la dernière erreur pour la page /diagnostic.html (même si l'application n'a pas pu démarrer)
+      (function () {
+        function noter(t) { try { localStorage.setItem('commpro:derniere-erreur', new Date().toISOString() + ' | ' + t); } catch (e) {} }
+        window.addEventListener('error', function (e) { noter((e.message || 'erreur') + ' | ' + (e.filename || '') + ':' + (e.lineno || '')); });
+        window.addEventListener('unhandledrejection', function (e) { var r = e.reason; noter(r && r.message ? (r.name || 'Erreur') + ': ' + r.message : String(r)); });
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

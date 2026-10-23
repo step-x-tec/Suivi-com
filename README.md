@@ -8,7 +8,7 @@ Controle d'installation : `supabase/verification.sql`. Réinitialisation : `supa
 ## Démarrage
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner l'URL et la clé anon Supabase.
-3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql`, `010_adresse_entreprise.sql` (dossier `supabase/migrations`).
+3. Supabase (SQL Editor) : exécuter dans l'ordre `001_commpro_core.sql`, `002_journal_triggers.sql`, `003_fk_users_set_null.sql`, `004_plans_quotas.sql`, `005_paiements.sql`, `006_notifications.sql`, `007_alignement_v1_et_import.sql`, `008_api_publique.sql`, `009_notifications_email.sql`, `010_adresse_entreprise.sql`, `011_super_admin.sql` (dossier `supabase/migrations`).
 4. Supabase > Authentication > Hooks : **n'activer aucun hook** (l'application lit l'entreprise et le rôle dans la base ; un hook mal réglé bloque la connexion ou les e-mails).
 5. Invitations et portail commercial (voir section ci-dessous).
 6. `npm run dev` · `npm test` · `npm run build` (déploiement Netlify, voir ci-dessous).
@@ -198,3 +198,6 @@ Tous les textes venant de la base sont échappés dans les e-mails, et seuls les
 5. La page de connexion distingue désormais « adresse non confirmée » de « mot de passe incorrect », propose **Renvoyer l'e-mail de confirmation**
    et signale une adresse déjà inscrite (Supabase répond « succès » dans ce cas, sans rien envoyer, ce qui donnait l'impression d'un e-mail perdu).
 6. Les liens du modèle d'e-mail par défaut de Supabase fonctionnent aussi (route `/auth/callback`) ; les modèles personnalisés du README utilisent `/auth/confirm`.
+
+## Espace Super Admin
+Plus > Administration : toutes les entreprises, plan et usage, changement de plan à la main (journalisé, le client est notifié), liste des paiements. Réservé aux comptes de la table `platform_admins` (voir INSTALLATION.md, étape 6 bis).
