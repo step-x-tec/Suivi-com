@@ -20,6 +20,7 @@
 <p><small>Cette page fonctionne même si l'application ne démarre pas. Envoyez-en une capture d'écran complète.</small></p>
 <div id="r"><div class="l">Analyse en cours…</div></div>
 <button id="reparer">Réparer : effacer les copies gardées et recharger</button>
+<button id="session" style="background:#171a21;color:#e8eaf0;border:1px solid #262b36">Effacer la session de cet appareil (déconnexion)</button>
 <a class="b s" href="/">Retour à l'application</a>
 <script>
 (function () {
@@ -65,15 +66,24 @@
       ajoute('Caches du navigateur', null, detail.length ? detail.join(' · ') : 'aucun');
     } catch (e) { ajoute('Caches du navigateur', null, 'indisponibles : ' + e.message); }
 
-    // 4. Supabase répond-il, et à quelle vitesse ? (adresse déduite du cookie de connexion, sinon à saisir)
-    var m = /sb-([a-z0-9]+)-auth-token/.exec(document.cookie);
-    if (m) {
+    // 4. Supabase : adresse RÉELLEMENT utilisée par l'application (écrite à la construction), puis réponse du serveur
+    var cfg = null;
+    try { cfg = await (await minuter(fetch('/config.json', { cache: 'no-store' }), 10000)).json(); } catch (e) {}
+    var url = cfg && cfg.supabase_url ? String(cfg.supabase_url).replace(/\/+$/, '') : null;
+    var cookies = (document.cookie.match(/sb-([a-z0-9]+)-auth-token/g) || []).map(function (c) { return /sb-([a-z0-9]+)-auth-token/.exec(c)[1]; });
+    if (!cfg) ajoute('Adresse Supabase de l\'application', null, 'non lisible (config.json absent : version trop ancienne ? relancez un déploiement).');
+    else if (!url) ajoute('Adresse Supabase de l\'application', false, 'AUCUNE : la variable PUBLIC_SUPABASE_URL n\'était pas définie dans Netlify au moment de la construction.');
+    else {
+      ajoute('Adresse Supabase de l\'application', url.indexOf('(') === 0 ? false : null, url + '  — c\'est la variable PUBLIC_SUPABASE_URL de Netlify. Comparez-la à Supabase > Project Settings > API > Project URL : elles doivent être identiques.');
       try {
         var t1 = performance.now();
-        var rs = await minuter(fetch('https://' + m[1] + '.supabase.co/auth/v1/health', { cache: 'no-store' }), 15000);
-        ajoute('Supabase (' + m[1] + '.supabase.co)', true, 'répond en ' + Math.round(performance.now() - t1) + ' ms (statut ' + rs.status + (rs.status === 401 ? ', normal sans clé' : '') + ')');
-      } catch (e) { ajoute('Supabase (' + m[1] + '.supabase.co)', false, 'ne répond pas : ' + e.message + ' → projet en pause ? (Supabase > « Restore project »), ou mauvaise adresse dans Netlify.'); }
-    } else ajoute('Supabase', null, 'adresse non détectée (vous n\'êtes pas connecté sur cet appareil).');
+        var rs = await minuter(fetch(url + '/auth/v1/health', { cache: 'no-store' }), 15000);
+        ajoute('Ce projet Supabase répond', true, 'en ' + Math.round(performance.now() - t1) + ' ms (statut ' + rs.status + (rs.status === 401 ? ', normal sans clé' : '') + ')');
+      } catch (e) { ajoute('Ce projet Supabase répond', false, 'non : ' + e.message + ' → l\'adresse n\'existe pas (projet supprimé ou autre projet : corrigez PUBLIC_SUPABASE_URL dans Netlify puis redéployez), ou le projet est en pause (Supabase > « Restore project »).'); }
+      var ref = /^https:\/\/([a-z0-9]+)\.supabase\.co/.exec(url); ref = ref && ref[1];
+      var anciens = cookies.filter(function (r) { return r !== ref; });
+      if (anciens.length) ajoute('Session d\'un ancien projet', null, 'cookie(s) du projet ' + anciens.join(', ') + ' : ignoré(s) par l\'application (sans effet). Le bouton « Effacer la session » les supprime.');
+    }
 
     // 5. dernière erreur du navigateur
     var derniere = null; try { derniere = localStorage.getItem('commpro:derniere-erreur'); } catch (e) {}
@@ -88,6 +98,14 @@
     try { var noms = await caches.keys(); for (var j = 0; j < noms.length; j++) await caches.delete(noms[j]); } catch (e) {}
     try { localStorage.removeItem('commpro:derniere-erreur'); } catch (e) {}
     location.href = '/';
+  });
+  document.getElementById('session').addEventListener('click', function () {
+    document.cookie.split(';').forEach(function (c) {
+      var nom = c.split('=')[0].trim();
+      if (nom.indexOf('sb-') === 0) document.cookie = nom + '=; Max-Age=0; path=/';
+    });
+    try { localStorage.removeItem('commpro:profil'); } catch (e) {}
+    location.href = '/login';
   });
   analyser();
 })();

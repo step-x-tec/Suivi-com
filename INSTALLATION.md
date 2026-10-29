@@ -83,7 +83,7 @@ Stockage > Effacer les données de `suivi-com.netlify.app`. Le message affiche m
 2. Supabase > page d'accueil du projet : le statut doit être « Healthy ». Les projets de l'offre gratuite sont **mis en pause après une période
    d'inactivité** : cliquez sur « Restore project » (la remise en route prend quelques minutes).
 3. Netlify > Site configuration > Environment variables : l'adresse `PUBLIC_SUPABASE_URL` doit être celle du projet **actuel**
-   (si vous avez recréé le projet Supabase, elle change, et il faut redéployer).
+   (si vous avez recréé le projet Supabase, elle change, et il faut redéployer). La page `/diagnostic.html` affiche l'adresse réellement intégrée à l'application et dit si ce projet répond.
 4. L'application affiche désormais « Le serveur met trop de temps à répondre » au bout de 30 secondes au lieu d'attendre sans fin.
 
 ## 6 bis. Devenir Super Admin (STEP-X uniquement)
